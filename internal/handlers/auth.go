@@ -1,9 +1,10 @@
 package handlers
 
 import (
+	"gorm.io/gorm"
 	"log"
 	"net/http"
-	"pdm-go-server/services"
+	"pdm-go-server/internal/services"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -15,7 +16,15 @@ type Credentials struct {
 	Password string `json:"password"`
 }
 
-func Login(c echo.Context) error {
+type UserHandler struct {
+	DB *gorm.DB
+}
+
+func NewUserHandler(db *gorm.DB) *UserHandler {
+	return &UserHandler{DB: db}
+}
+
+func (h *UserHandler) Login(c echo.Context) error {
 
 	log.Println("Login request received")
 	creds := new(Credentials)
@@ -25,7 +34,7 @@ func Login(c echo.Context) error {
 	log.Println("Login request received for:", creds.Email)
 
 	// Validate user credentials
-	if !services.ValidateUser(creds.Email, creds.Password) {
+	if !services.ValidateUser(h.DB, creds.Email, creds.Password) {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid credentials"})
 	}
 

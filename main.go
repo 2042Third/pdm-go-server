@@ -1,14 +1,29 @@
 package main
 
 import (
+	"github.com/joho/godotenv"
 	"log"
-	"pdm-go-server/handlers"
+	"pdm-go-server/internal/db"
+	"pdm-go-server/internal/handlers"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
+	// Load .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file")
+	}
+
+	// Initialize database
+	database := db.NewDatabase()
+
+	// Initialize handlers
+	userHandler := handlers.NewUserHandler(database.DB)
+
+	// Initialize Echo server
 	e := echo.New()
 
 	// Middleware
@@ -21,7 +36,7 @@ func main() {
 	}))
 
 	// Routes
-	e.POST("/login", handlers.Login)
+	e.POST("/login", userHandler.Login)
 
 	// Start server
 	log.Fatal(e.Start(":8080"))
