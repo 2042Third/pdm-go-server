@@ -1,0 +1,20 @@
+config:
+  target: "ws://localhost:8082/ws"
+  phases:
+    - duration: 5
+      arrivalRate: 10 # 50 connections per second
+  protocols:
+    websocket:
+      pingInterval: 5 # optional, sends ping every 10 seconds
+
+scenarios:
+  - engine: ws
+    flow:
+      - think: 2
+      - send: #'{"msg":"hello", "code":13}' # Match the server's expected input
+          msg: "hello"
+          code: 13
+      - think: 2
+      - expect:
+          equals: "hello: 13" # Match the server's output
+
