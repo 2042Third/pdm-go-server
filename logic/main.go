@@ -43,13 +43,15 @@ func main() {
 		DB:       0,
 	}
 
+	// Initialize Redis client
 	redisClient := cache.NewRedisClient(cfg)
 	cacheLayer := cache.NewCache(redisClient)
 
-	ctx := context.Background()
+	// Initialize RabbitMQ connection
+	rabbitMQCtx, _ := services.NewRabbitMQHandler()
 
 	// Initialize storage
-	storage := services.NewStorage(database.DB, &cacheLayer, &ctx)
+	storage := services.NewStorage(database.DB, rabbitMQCtx, cacheLayer)
 
 	// Initialize auth service
 	authService := auth.NewAuthService(secretKey)
@@ -71,6 +73,7 @@ func main() {
 
 	// Routes
 	e.POST("/login", userHandler.Login)
+	e.GET("/api/user/logout", userHandler.Logout, authMiddleware.JWTMiddleware(authService))
 	e.GET("/protected", func(c echo.Context) error {
 		user := c.Get("user").(string)
 		return c.JSON(http.StatusOK, map[string]string{"message": "Access granted", "user": user})

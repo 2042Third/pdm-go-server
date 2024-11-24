@@ -27,7 +27,7 @@ type RedisCache struct {
 	client RedisClient
 }
 
-func NewCache(client RedisClient) Cache {
+func NewCache(client RedisClient) *RedisCache {
 	return &RedisCache{
 		client: client,
 	}

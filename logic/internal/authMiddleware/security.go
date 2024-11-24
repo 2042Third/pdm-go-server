@@ -24,7 +24,7 @@ func JWTMiddleware(authService *auth.AuthService) echo.MiddlewareFunc {
 			}
 
 			claims := token.Claims.(jwt.MapClaims)
-			c.Set("user", claims["email"])
+			c.Set("userEmail", claims["email"])
 			return next(c)
 		}
 	}
