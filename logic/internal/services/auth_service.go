@@ -2,13 +2,11 @@ package services
 
 import (
 	"pdm-go-server/internal/models"
-
-	"gorm.io/gorm"
 )
 
-func ValidateUser(DB *gorm.DB, email, password string) bool {
+func ValidateUser(S *Storage, email, password string) bool {
 	var user models.User
-	err := DB.Where("email = ?", email).First(&user).Error
+	err := S.DB.Where("email = ?", email).First(&user).Error
 	if err != nil {
 		return false
 	}
@@ -16,8 +14,8 @@ func ValidateUser(DB *gorm.DB, email, password string) bool {
 	return password == user.Spw
 }
 
-func GetUserByID(DB *gorm.DB, userID uint) (models.User, error) {
+func GetUserByID(S *Storage, userID uint) (models.User, error) {
 	var usr models.User
-	err := DB.First(&usr, userID).Error
+	err := S.DB.First(&usr, userID).Error
 	return usr, err
 }

@@ -20,9 +20,9 @@ const (
 
 // Upgrade HTTP to WebSocket
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true }, // Allow all origins
+	ReadBufferSize:  4096,
+	WriteBufferSize: 4096,
+	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
 // Message represents the JSON structure of incoming messages
@@ -93,7 +93,7 @@ func (c *Connection) ReadPump(h *Hub) {
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived) {
 				//log.Printf("Client closed connection: %v", err)
 			} else {
-				log.Printf("Error reading message: %v", err)
+				//log.Printf("Error reading message: %v", err)
 			}
 			return
 		}
