@@ -27,6 +27,22 @@ services:
         limits:
           memory: 512M # Adjust memory for Redis as needed
 
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"  # If you need HTTPS
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - redis
+      - rabbitmq
+    deploy:
+      resources:
+        limits:
+          memory: 256M # Adjust as needed
+
 volumes:
   redis_data:
     driver: local
