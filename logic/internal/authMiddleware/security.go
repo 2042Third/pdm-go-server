@@ -1,30 +1,66 @@
 package authMiddleware
 
 import (
+	"crypto/ed25519"
+	"fmt"
 	"github.com/golang-jwt/jwt/v4"
-	"net/http"
-	"strings"
-
 	"github.com/labstack/echo/v4"
-	"pdm-go-server/internal/auth"
+	"net/http"
 )
 
-func JWTMiddleware(authService *auth.AuthService) echo.MiddlewareFunc {
+// JWTMiddlewareConfig holds the configuration for the JWT middleware
+type JWTMiddlewareConfig struct {
+	PublicKey ed25519.PublicKey
+}
+
+// CreateJWTMiddleware creates a new JWT middleware with the provided public key
+func CreateJWTMiddleware(config JWTMiddlewareConfig) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			authHeader := c.Request().Header.Get("Authorization")
-			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-				return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Missing or invalid token"})
+			// Get token from header
+			tokenString := c.Request().Header.Get("Authorization")
+			if tokenString == "" {
+				return echo.NewHTTPError(http.StatusUnauthorized, "missing authorization header")
 			}
 
-			tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-			token, err := authService.ValidateToken(tokenStr)
-			if err != nil || !token.Valid {
-				return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid token"})
+			// Remove 'Bearer ' prefix if present
+			if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
+				tokenString = tokenString[7:]
 			}
 
-			claims := token.Claims.(jwt.MapClaims)
-			c.Set("userEmail", claims["email"])
+			// Parse and validate token
+			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+				// Validate the signing method
+				if _, ok := token.Method.(*jwt.SigningMethodEd25519); !ok {
+					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+				}
+				return config.PublicKey, nil
+			})
+
+			if err != nil {
+				return echo.NewHTTPError(http.StatusUnauthorized, fmt.Sprintf("invalid token: %v", err))
+			}
+
+			if !token.Valid {
+				return echo.NewHTTPError(http.StatusUnauthorized, "invalid token")
+			}
+
+			// Safely type assert and access claims
+			claims, ok := token.Claims.(jwt.MapClaims)
+			if !ok {
+				return echo.NewHTTPError(http.StatusUnauthorized, "invalid token claims")
+			}
+
+			// Safely get email from claims
+			email, ok := claims["email"].(string)
+			if !ok {
+				return echo.NewHTTPError(http.StatusUnauthorized, "invalid email claim")
+			}
+
+			// Set claims in context
+			c.Set("email", email)
+			c.Set("token", token)
+
 			return next(c)
 		}
 	}

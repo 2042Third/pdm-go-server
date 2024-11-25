@@ -31,6 +31,15 @@ func InitRabbitMQ() (*amqp.Connection, *amqp.Channel, error) {
 		false,           // No-wait
 		nil,             // Arguments
 	)
+	// Declare the queue
+	_, err = ch.QueueDeclare(
+		"logic_to_sync", // Queue name
+		true,            // Durable
+		false,           // Delete when unused
+		false,           // Exclusive
+		false,           // No-wait
+		nil,             // Arguments
+	)
 	if err != nil {
 		return nil, nil, err
 	}

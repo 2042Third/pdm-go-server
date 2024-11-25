@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"syncing/config"
 	"syncing/handlers"
-
-	"github.com/gorilla/mux"
 )
 
 func main() {
@@ -36,13 +34,15 @@ func main() {
 	// Start RabbitMQ consumer goroutine
 	go syncHandler.ConsumeRabbitMQMessages(ch)
 
-	// Set up WebSocket routes
-	r := mux.NewRouter()
-	r.HandleFunc("/ws", handlers.HandleWebSocket)
-
-	// Start HTTP server
-	log.Println("Starting server on :8082...")
-	if err := http.ListenAndServe(":8082", r); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+	// Create WebSocket handler
+	wsHandler, err := handlers.NewWebSocketHandler(ch, "notes_exchange")
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	// Set up HTTP route
+	http.HandleFunc("/ws", wsHandler.HandleWebSocket)
+
+	// Start server
+	log.Fatal(http.ListenAndServe(":8082", nil))
 }

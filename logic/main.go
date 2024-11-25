@@ -6,7 +6,6 @@ import (
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
-	"os"
 	"pdm-go-server/internal/auth"
 	"pdm-go-server/internal/authMiddleware"
 	"pdm-go-server/internal/cache"
@@ -20,17 +19,10 @@ import (
 )
 
 func main() {
-
 	// Load .env file
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("Error loading .env file")
-	}
-
-	// Load environment variables
-	secretKey := os.Getenv("JWT_SECRET_KEY")
-	if secretKey == "" {
-		log.Fatal("JWT_SECRET_KEY is not set")
 	}
 
 	// Initialize database
@@ -54,7 +46,24 @@ func main() {
 	storage := services.NewStorage(database.DB, rabbitMQCtx, cacheLayer)
 
 	// Initialize auth service
-	authService := auth.NewAuthService(secretKey)
+	// Load keys from environment
+	privateKey, publicKey, err := auth.LoadKeys()
+	if err != nil {
+		log.Fatalf("Failed to load keys: %v", err)
+	}
+
+	// JWT config
+	// Create middleware config
+	jwtConfig := authMiddleware.JWTMiddlewareConfig{
+		PublicKey: publicKey,
+	}
+
+	// Create auth service
+	authService := auth.NewAuthService(privateKey, publicKey)
+	err = authService.HealthCheck()
+	if err != nil {
+		log.Fatalf("Failed to create auth service: %v", err)
+	}
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(storage, authService)
@@ -73,11 +82,16 @@ func main() {
 
 	// Routes
 	e.POST("/login", userHandler.Login)
-	e.GET("/api/user/logout", userHandler.Logout, authMiddleware.JWTMiddleware(authService))
-	e.GET("/protected", func(c echo.Context) error {
-		user := c.Get("user").(string)
-		return c.JSON(http.StatusOK, map[string]string{"message": "Access granted", "user": user})
-	}, authMiddleware.JWTMiddleware(authService))
+
+	// Protected routes group
+	api := e.Group("")
+	api.Use(authMiddleware.CreateJWTMiddleware(jwtConfig))
+
+	api.GET("/api/user/logout", userHandler.Logout)
+	api.GET("/protected", func(c echo.Context) error {
+		email := c.Get("email").(string)
+		return c.JSON(http.StatusOK, map[string]string{"message": "Access granted", "email": email})
+	})
 
 	// Start server
 	log.Fatal(e.Start(":8080"))

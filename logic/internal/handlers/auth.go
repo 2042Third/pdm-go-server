@@ -2,11 +2,14 @@ package handlers
 
 import (
 	"context"
+	"fmt"
+	"github.com/golang-jwt/jwt/v4"
 	"log"
 	"net/http"
 	"pdm-go-server/internal/auth"
 	"pdm-go-server/internal/services"
 	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -42,7 +45,7 @@ func (h *UserHandler) Login(c echo.Context) error {
 	}
 
 	// Generate JWT token
-	token, expiration, err := h.AuthService.GenerateToken(creds.Email)
+	tokenStr, expiration, err := h.AuthService.GenerateToken(creds.Email)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Token generation failed"})
 	}
@@ -54,17 +57,30 @@ func (h *UserHandler) Login(c echo.Context) error {
 			"message": "Cache operation failed",
 		})
 	}
-	err = h.S.Ch.HSet(ctx, "user:sessionKey", strconv.Itoa(int(userId)), token)
+	token, err := h.AuthService.ValidateToken(tokenStr)
+	if err != nil {
+		log.Println("Token invalid at login (status 500): ", err)
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"message": "Server Error",
+		})
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	parsedExp := time.Unix(int64(claims["exp"].(float64)), 0)
+	ttl := time.Until(parsedExp) // Calculate duration until expiration (for Redis TTL)
+
+	key := fmt.Sprintf("user:%s:sessionKey", strconv.Itoa(int(userId)))
+	err = h.S.Ch.Set(ctx, key, tokenStr, ttl)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"message": "Cache operation failed",
 		})
 	}
 
-	h.S.R.DispatchAddSession(strconv.Itoa(int(userId)), token)
+	h.S.R.DispatchAddSession(strconv.Itoa(int(userId)), tokenStr)
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"sessionKey": token,
+		"sessionKey": tokenStr,
 		"expiration": expiration,
 		"message":    "Login successful",
 	})
@@ -74,7 +90,7 @@ func (h *UserHandler) Logout(c echo.Context) error {
 	ctx := context.Background()
 	log.Println("Logout request received")
 
-	userEmail := c.Get("userEmail").(string)
+	userEmail := c.Get("email").(string)
 
 	userId, err := h.S.Ch.HGet(ctx, "userEmail:userId", userEmail)
 	if err != nil {
@@ -82,17 +98,31 @@ func (h *UserHandler) Logout(c echo.Context) error {
 			"message": "Cache operation failed, HGet userEmail:userId",
 		})
 	}
-	sessionKey, err := h.S.Ch.HGet(ctx, "user:sessionKey", userId)
+	key := fmt.Sprintf("user:%s:sessionKey", userId)
+
+	sessionKey, err := h.S.Ch.Get(ctx, key)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": "Cache operation failed, HGet userId:sessionKey",
+			"message": "Cache operation failed, Get user:%s:sessionKeyy",
 		})
 	}
 
-	err = h.S.Ch.HDel(ctx, "user:sessionKey", userId, sessionKey)
+	token, err := h.AuthService.ValidateToken(sessionKey)
+	if err != nil {
+		log.Println("Token invalid at logout: ", err)
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	parsedExp := time.Unix(int64(claims["exp"].(float64)), 0)
+	ttl := time.Until(parsedExp) // Calculate duration until expiration (for Redis TTL)
+
+	blockListKey := fmt.Sprintf("user:%s:blocked", userId)
+	err = h.S.Ch.Set(ctx, blockListKey, sessionKey, ttl)
+
+	err = h.S.Ch.Delete(ctx, key)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": "Cache operation failed, HDel userId:sessionKey",
+			"message": "Cache operation failed, Delete user:%s:sessionKey",
 		})
 	}
 
