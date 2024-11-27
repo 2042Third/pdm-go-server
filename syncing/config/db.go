@@ -10,32 +10,30 @@ import (
 )
 
 func InitDB() (*gorm.DB, error) {
-	// Retrieve environment variables
 	dbUser := os.Getenv("DB_USER")
 	dbHost := os.Getenv("DB_HOST")
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
 	dbPort := os.Getenv("DB_PORT")
-	dbSSLMode := os.Getenv("DB_SSL_MODE")
 
-	// Create DSN (Data Source Name)
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
-		dbHost, dbUser, dbPassword, dbName, dbPort, dbSSLMode)
+	// TEMPORARY DEBUG - REMOVE AFTER TESTING
+	fmt.Printf("Actual password being used: %s\n", dbPassword)
 
-	// Initialize connection
+	// Try without URL encoding, using the standard connection string format
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=require",
+		dbHost,
+		dbUser,
+		dbPassword, // Use raw password
+		dbName,
+		dbPort,
+	)
+
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to the database: %v", err)
+		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	log.Println("Connected to the database successfully!")
-
-	// Example operation to verify the connection
-	var result int
-	if err := db.Raw("SELECT 1").Scan(&result).Error; err != nil {
-		log.Fatalf("Database connection verification failed: %v", err)
-	}
-	
 	return db, nil
 }
 

@@ -39,7 +39,7 @@ func (h *UserHandler) Login(c echo.Context) error {
 	log.Println("Login attempt for:", creds.Email)
 
 	// Validate user credentials
-	userId, isValid := services.ValidateUser(h.S, creds.Email, creds.Password)
+	userId, isValid := services.ValidateUser(h.S, ctx, creds.Email, creds.Password)
 	if !isValid {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid credentials"})
 	}
@@ -131,4 +131,23 @@ func (h *UserHandler) Logout(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Logout successful",
 	})
+}
+
+func (h *UserHandler) GetUserInfo(c echo.Context) error {
+	ctx := context.Background()
+	log.Println("Get user info request received")
+
+	userEmail := c.Get("email").(string)
+
+	userId, err := h.S.Ch.HGet(ctx, "userEmail:userId", userEmail)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "Cache operation failed, HGet userEmail:userId",
+		})
+	}
+
+	intUserId, err := strconv.Atoi(userId)
+	userInfo, err := services.GetUserInfo(h.S, ctx, uint(intUserId))
+
+	return c.JSON(http.StatusOK, userInfo)
 }

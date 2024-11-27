@@ -67,6 +67,7 @@ func main() {
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(storage, authService)
+	notesHandler := handlers.NewNotesHandler(storage, authService)
 
 	// Initialize Echo server
 	e := echo.New()
@@ -87,7 +88,16 @@ func main() {
 	api := e.Group("")
 	api.Use(authMiddleware.CreateJWTMiddleware(jwtConfig))
 
+	// User routes
 	api.GET("/api/user/logout", userHandler.Logout)
+	api.GET("/api/user", userHandler.GetUserInfo)
+
+	// Notes routes
+	api.POST("/api/notes/new", notesHandler.CreateNote)
+	api.GET("/api/notes", notesHandler.GetNotes)
+	api.POST("/api/notes", notesHandler.UpdateNotes)
+
+	// Other routes
 	api.GET("/protected", func(c echo.Context) error {
 		email := c.Get("email").(string)
 		return c.JSON(http.StatusOK, map[string]string{"message": "Access granted", "email": email})
