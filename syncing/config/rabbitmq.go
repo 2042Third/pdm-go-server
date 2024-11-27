@@ -12,8 +12,11 @@ func InitRabbitMQ() (*amqp.Connection, *amqp.Channel, error) {
 
 	rabbitUser := os.Getenv("RABBITMQ_USER")
 	rabbitPass := os.Getenv("RABBITMQ_PASSWORD")
+	rabbitHost := os.Getenv("RABBITMQ_HOST")
+	rabbitPort := os.Getenv("RABBITMQ_PORT")
+
 	// Connect to RabbitMQ
-	rabbitmqUrl := fmt.Sprintf("amqp://%s:%s@localhost:5672/", rabbitUser, rabbitPass)
+	rabbitmqUrl := fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitUser, rabbitPass, rabbitHost, rabbitPort)
 	conn, err := amqp.Dial(rabbitmqUrl)
 	if err != nil {
 		return nil, nil, err
