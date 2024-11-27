@@ -6,6 +6,7 @@ import (
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
+	"os"
 	"pdm-go-server/internal/auth"
 	"pdm-go-server/internal/authMiddleware"
 	"pdm-go-server/internal/cache"
@@ -28,10 +29,12 @@ func main() {
 	// Initialize database
 	database := db.NewDatabase()
 
-	// Initialize cache
+	// Initialize
+	redisUrl := os.Getenv("REDIS_URL")
+	redisPass := os.Getenv("REDIS_PASSWORD")
 	cfg := &cache.CacheConfig{
-		Address:  "localhost:6379",
-		Password: "",
+		Address:  redisUrl,
+		Password: redisPass,
 		DB:       0,
 	}
 

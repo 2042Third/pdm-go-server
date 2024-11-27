@@ -16,10 +16,6 @@ func InitDB() (*gorm.DB, error) {
 	dbName := os.Getenv("DB_NAME")
 	dbPort := os.Getenv("DB_PORT")
 
-	// TEMPORARY DEBUG - REMOVE AFTER TESTING
-	fmt.Printf("Actual password being used: %s\n", dbPassword)
-
-	// Try without URL encoding, using the standard connection string format
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=require",
 		dbHost,
