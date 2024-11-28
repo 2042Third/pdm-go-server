@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -14,6 +16,29 @@ import (
 	"pdm-go-server/internal/handlers"
 	"pdm-go-server/internal/services"
 )
+
+// generateNonce creates a random nonce
+func generateNonce() string {
+	nonce := make([]byte, 16)
+	rand.Read(nonce)
+	return base64.StdEncoding.EncodeToString(nonce)
+}
+
+// CSP middleware that adds nonce and headers
+func cspMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		nonce := generateNonce()
+		c.Set("nonce", nonce)
+
+		// Set CSP header with nonce
+		c.Response().Header().Set("Content-Security-Policy",
+			"default-src 'self'; "+
+				"script-src 'self' 'nonce-"+nonce+"'; "+
+				"style-src 'self'")
+
+		return next(c)
+	}
+}
 
 func main() {
 	// Load .env file
@@ -72,20 +97,27 @@ func main() {
 	userHandler := handlers.NewUserHandler(storage, authService)
 	notesHandler := handlers.NewNotesHandler(storage, authService)
 
-	// Initialize Echo server
 	e := echo.New()
+
+	// Setup static file serving
+	e.Static("/static", "static")
+
+	// Setup template renderer
+	handlers.SetupRenderer(e)
 
 	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+	e.Use(cspMiddleware) // Add our custom CSP middleware
 	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
 		XSSProtection:         "1; mode=block",
-		ContentSecurityPolicy: "default-src 'self'; frame-ancestors 'none';",
+		ContentSecurityPolicy: "", // We handle CSP in our middleware
 		ReferrerPolicy:        "strict-origin-when-cross-origin",
 	}))
 
 	// Routes
 	e.POST("/login", userHandler.Login)
+	e.GET("/status/*", handlers.StatusHandler) // Changed from POST to GET as it's retrieving data
 
 	// Protected routes group
 	api := e.Group("")
