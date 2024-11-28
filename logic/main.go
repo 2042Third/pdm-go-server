@@ -100,7 +100,8 @@ func main() {
 	e := echo.New()
 
 	// Setup static file serving
-	e.Static("/static", "pdm-go-server/logic/static")
+	internalPath := os.Getenv("INTERNAL_PATH")
+	e.Static("/static", internalPath+"/static")
 
 	// Setup template renderer
 	handlers.SetupRenderer(e)
