@@ -1,7 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/streadway/amqp"
 )
@@ -10,8 +12,14 @@ var RabbitMQConnection *amqp.Connection
 var RabbitMQChannel *amqp.Channel
 
 func InitRabbitMQ() (*amqp.Connection, *amqp.Channel, error) {
+	rabbitUser := os.Getenv("RABBITMQ_USER")
+	rabbitPass := os.Getenv("RABBITMQ_PASSWORD")
+	rabbitHost := os.Getenv("RABBITMQ_HOST")
+	rabbitPort := os.Getenv("RABBITMQ_PORT")
+
 	// Connect to RabbitMQ
-	conn, err := amqp.Dial("amqp://admin:admin@localhost:5672/")
+	rabbitmqUrl := fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitUser, rabbitPass, rabbitHost, rabbitPort)
+	conn, err := amqp.Dial(rabbitmqUrl)
 	if err != nil {
 		return nil, nil, err
 	}
