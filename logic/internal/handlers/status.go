@@ -103,7 +103,7 @@ func SetupRenderer(e *echo.Echo) {
 		e.Logger.Fatal("Unable to determine the current working directory")
 	}
 
-	templatePath := filepath.Join(cwd, "templates", "status.html")
+	templatePath := filepath.Join(cwd, "pdm-go-server", "logic", "templates", "status.html")
 	templates := template.Must(template.ParseFiles(templatePath))
 
 	renderer := &CustomRenderer{
