@@ -45,6 +45,10 @@ func main() {
 	// Initialize RabbitMQ connection
 	rabbitMQCtx, _ := services.NewRabbitMQHandler()
 
+	if rabbitMQCtx == nil {
+		log.Fatalf("Failed to initialize RabbitMQ")
+	}
+
 	// Initialize storage
 	storage := services.NewStorage(database.DB, rabbitMQCtx, cacheLayer)
 
