@@ -1,9 +1,9 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"github.com/joho/godotenv"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"log"
 	"net/http"
 	"os"
@@ -13,10 +13,6 @@ import (
 	"pdm-go-server/internal/db"
 	"pdm-go-server/internal/handlers"
 	"pdm-go-server/internal/services"
-	"time"
-
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
@@ -98,6 +94,7 @@ func main() {
 	// User routes
 	api.GET("/api/user/logout", userHandler.Logout)
 	api.GET("/api/user", userHandler.GetUserInfo)
+	api.POST("/api/user", userHandler.GetUserInfo)
 
 	// Notes routes
 	api.POST("/api/notes/new", notesHandler.CreateNote)
@@ -112,61 +109,4 @@ func main() {
 
 	// Start server
 	log.Fatal(e.Start(":8080"))
-}
-
-func cacheTest() {
-	cfg := &cache.CacheConfig{
-		Address:  "localhost:6379",
-		Password: "",
-		DB:       0,
-	}
-
-	redisClient := cache.NewRedisClient(cfg)
-	cacheLayer := cache.NewCache(redisClient)
-
-	ctx := context.Background()
-
-	// Map-like operations
-	err := cacheLayer.HSet(ctx, "user:123", "name", "John Doe")
-	if err != nil {
-		log.Fatalf("Failed to HSet: %v", err)
-	}
-
-	name, err := cacheLayer.HGet(ctx, "user:123", "name")
-	if err != nil {
-		log.Fatalf("Failed to HGet: %v", err)
-	}
-	fmt.Printf("Name: %s\n", name)
-
-	// Set-like operations
-	err = cacheLayer.SAdd(ctx, "colors", "red", "blue", "green")
-	if err != nil {
-		log.Fatalf("Failed to SAdd: %v", err)
-	}
-
-	members, err := cacheLayer.SMembers(ctx, "colors")
-	if err != nil {
-		log.Fatalf("Failed to SMembers: %v", err)
-	}
-	fmt.Printf("Colors: %v\n", members)
-
-	isMember, err := cacheLayer.SIsMember(ctx, "colors", "red")
-	if err != nil {
-		log.Fatalf("Failed to SIsMember: %v", err)
-	}
-	fmt.Printf("Is red a member? %v\n", isMember)
-
-	// Set a cache value
-	err = cacheLayer.Set(ctx, "key", "value", 10*time.Second)
-	if err != nil {
-		log.Fatalf("Failed to set cache: %v", err)
-	}
-
-	// Get the cache value
-	val, err := cacheLayer.Get(ctx, "key")
-	if err != nil {
-		log.Fatalf("Failed to get cache: %v", err)
-	}
-	fmt.Printf("Cache value: %s\n", val)
-
 }

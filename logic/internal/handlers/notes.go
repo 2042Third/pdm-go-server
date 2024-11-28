@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/labstack/echo/v4"
 	"github.com/streadway/amqp"
@@ -9,6 +10,7 @@ import (
 	"pdm-go-server/internal/auth"
 	"pdm-go-server/internal/models"
 	"pdm-go-server/internal/services"
+	"strconv"
 )
 
 type NotesHandler struct {
@@ -33,11 +35,35 @@ func (h *NotesHandler) CreateNote(c echo.Context) error {
 }
 
 func (h *NotesHandler) GetNotes(c echo.Context) error {
-	//ctx := context.Background()
+	ctx := context.Background()
 
-	return c.JSON(http.StatusInternalServerError, map[string]string{
-		"message": "Not implemented",
-	})
+	userEmail := c.Get("email").(string)
+	log.Println("Get notes request received from user " + userEmail)
+
+	userId, err := h.S.Ch.HGet(ctx, "userEmail:userId", userEmail)
+	if err != nil {
+		log.Printf("Failed to get userId for userEmail %s: %v", userEmail, err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "Cache operation failed, HGet userEmail:userId",
+		})
+	}
+
+	intUserId, err := strconv.Atoi(userId)
+	if err != nil {
+		log.Printf("Failed to convert userId to int: %v", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "Failed to convert userId to int",
+		})
+	}
+	notes, err := services.GetNotes(h.S, ctx, uint(intUserId))
+	if err != nil {
+		log.Printf("Failed to get notes: %v", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "Failed to get notes",
+		})
+	}
+
+	return c.JSON(http.StatusOK, notes)
 }
 
 func (h *NotesHandler) UpdateNotes(c echo.Context) error {

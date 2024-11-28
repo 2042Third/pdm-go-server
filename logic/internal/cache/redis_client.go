@@ -19,6 +19,7 @@ type RedisClient interface {
 	Decr(ctx context.Context, key string) (int64, error)
 	DecrBy(ctx context.Context, key string, value int64) (int64, error)
 	CountKeys(ctx context.Context, pattern string) (int64, error)
+	Keys(ctx context.Context, pattern string) ([]string, error)
 
 	// Key operations
 	Exists(ctx context.Context, key string) (bool, error)
@@ -51,6 +52,10 @@ type RedisClient interface {
 }
 type DefaultRedisClient struct {
 	client *redis.Client
+}
+
+func (c *DefaultRedisClient) Keys(ctx context.Context, pattern string) ([]string, error) {
+	return c.client.Keys(ctx, pattern).Result()
 }
 
 func NewRedisClient(cfg *CacheConfig) RedisClient {

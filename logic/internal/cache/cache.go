@@ -32,6 +32,7 @@ type Cache interface {
 	Incr(ctx context.Context, key string) (interface{}, interface{})
 	Expire(ctx context.Context, key string, after time.Duration) interface{}
 	CountKeys(ctx context.Context, pattern string) (int64, error)
+	Keys(ctx context.Context, pattern string) ([]string, error)
 }
 
 type RedisCache struct {
@@ -45,6 +46,10 @@ func NewCache(client RedisClient) *RedisCache {
 }
 
 // Additional helper methods
+func (r *RedisCache) Keys(ctx context.Context, pattern string) ([]string, error) {
+	return r.client.Keys(ctx, pattern)
+}
+
 func (r *RedisCache) CountKeys(ctx context.Context, pattern string) (int64, error) {
 	return r.client.CountKeys(ctx, pattern)
 }
