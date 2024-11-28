@@ -100,7 +100,7 @@ func main() {
 	e := echo.New()
 
 	// Setup static file serving
-	e.Static("/static", "static")
+	e.Static("/static", "pdm-go-server/logic/static")
 
 	// Setup template renderer
 	handlers.SetupRenderer(e)
