@@ -116,7 +116,16 @@ func (h *UserHandler) Logout(c echo.Context) error {
 	parsedExp := time.Unix(int64(claims["exp"].(float64)), 0)
 	ttl := time.Until(parsedExp) // Calculate duration until expiration (for Redis TTL)
 
-	blockListKey := fmt.Sprintf("user:%s:blocked", userId)
+	// Get blocked list count
+	maxCount, err := h.S.Ch.CountKeys(ctx, fmt.Sprintf("user:%s:blocked:*", userId))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "Cache operation failed, CountKeys user:%s:blocked:*",
+		})
+	}
+
+	// Add session key to blocked list
+	blockListKey := fmt.Sprintf("user:%s:blocked:%d", userId, maxCount+1)
 	err = h.S.Ch.Set(ctx, blockListKey, sessionKey, ttl)
 
 	err = h.S.Ch.Delete(ctx, key)
