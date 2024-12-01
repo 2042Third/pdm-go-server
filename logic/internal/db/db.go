@@ -2,11 +2,10 @@ package db
 
 import (
 	"fmt"
-	"log"
-	"os"
-
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"log"
+	"os"
 )
 
 type Database struct {
@@ -35,11 +34,12 @@ func NewDatabase() *Database {
 
 	log.Println("Connected to the database successfully!")
 
-	// Example operation to verify the connection
-	var result int
-	if err := db.Raw("SELECT 1").Scan(&result).Error; err != nil {
-		log.Fatalf("Database connection verification failed: %v", err)
-	}
+	// Run migrations
+	//if err := db.AutoMigrate(&models.SessionKey{}); err != nil {
+	//	log.Fatalf("Failed to migrate database schema: %v", err)
+	//}
+	//
+	//log.Println("Database migration completed!")
 
 	return &Database{DB: db}
 }

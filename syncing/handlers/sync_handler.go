@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"strconv"
 	"syncing/models"
+	"time"
 
 	"github.com/streadway/amqp"
 	"gorm.io/gorm"
@@ -108,6 +110,7 @@ func (h *SyncHandler) handleAddRefreshKey(payload map[string]interface{}) {
 func (h *SyncHandler) handleAddSessionKey(payload map[string]interface{}) {
 	userIDStr, _ := payload["userId"].(string)
 	sessionKey, _ := payload["sessionKey"].(string)
+	expiration, _ := payload["expiration"].(float64)
 
 	log.Printf("Received RabbitMQ for sessionKey for %s\n", userIDStr)
 
@@ -117,9 +120,12 @@ func (h *SyncHandler) handleAddSessionKey(payload map[string]interface{}) {
 		return
 	}
 
+	parsedExp := time.Unix(int64(expiration), 0)
+	fmt.Printf("Parsed expiration: %v from %d\n", parsedExp, expiration)
 	session := models.SessionKey{
-		UserID:     uint(userID),
-		SessionKey: sessionKey,
+		UserID:         uint(userID),
+		SessionKey:     sessionKey,
+		ExpirationTime: parsedExp,
 	}
 
 	if err := h.DB.Create(&session).Error; err != nil {

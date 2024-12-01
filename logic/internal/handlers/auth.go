@@ -50,6 +50,7 @@ func (h *UserHandler) Login(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Token generation failed"})
 	}
 
+	fmt.Printf("Expiration: %v\n", time.Unix(expiration, 0))
 	// Use the context directly in the handler
 	err = h.S.Ch.HSet(ctx, "userEmail:userId", creds.Email, strconv.Itoa(int(userId)))
 	if err != nil {
@@ -77,7 +78,7 @@ func (h *UserHandler) Login(c echo.Context) error {
 		})
 	}
 
-	h.S.R.DispatchAddSession(strconv.Itoa(int(userId)), tokenStr)
+	h.S.R.DispatchAddSession(strconv.Itoa(int(userId)), tokenStr, expiration)
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"sessionKey": tokenStr,
