@@ -45,7 +45,7 @@ func (h *UserHandler) Login(c echo.Context) error {
 	}
 
 	// Generate JWT token
-	tokenStr, expiration, err := h.AuthService.GenerateToken(creds.Email)
+	tokenStr, expiration, err := h.AuthService.GenerateToken(creds.Email, userId)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Token generation failed"})
 	}

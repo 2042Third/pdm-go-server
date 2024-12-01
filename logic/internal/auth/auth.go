@@ -66,12 +66,13 @@ func NewAuthService(privateKey ed25519.PrivateKey, publicKey ed25519.PublicKey) 
 }
 
 // GenerateToken generates a new JWT token with provided claims using Ed25519.
-func (a *AuthService) GenerateToken(email string) (string, int64, error) {
+func (a *AuthService) GenerateToken(email string, userId uint) (string, int64, error) {
 	token := jwt.New(jwt.SigningMethodEdDSA) // Use Ed25519 for signing
 	claims := token.Claims.(jwt.MapClaims)
 	expiration := time.Now().Add(24 * time.Hour).Unix() // Adjust token validity duration as needed
 
 	claims["email"] = email
+	claims["userId"] = userId
 	claims["exp"] = expiration
 	claims["iat"] = time.Now().Unix()
 
@@ -101,7 +102,7 @@ func (a *AuthService) HealthCheck() error {
 	log.Printf("Running JWT system health check with test email: %s", testEmail)
 
 	// Try to generate a token
-	token, exp, err := a.GenerateToken(testEmail)
+	token, exp, err := a.GenerateToken(testEmail, 1)
 	if err != nil {
 		return fmt.Errorf("health check failed - token generation error: %w", err)
 	}
