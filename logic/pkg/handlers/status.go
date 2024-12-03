@@ -7,7 +7,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"html/template"
 	"io"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -111,12 +110,8 @@ func (r *CustomRenderer) Render(w io.Writer, name string, data interface{}, c ec
 	return r.templates.ExecuteTemplate(w, name, templateData)
 }
 
-func (s *StatusHandler) SetupRenderer(e *echo.Echo) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		e.Logger.Fatal("Unable to determine the current working directory")
-	}
-	templatePath := filepath.Join(cwd, "/templates", "status.html")
+func (s *StatusHandler) SetupRenderer(e *echo.Echo, wd string) {
+	templatePath := filepath.Join(wd, "/templates", "status.html")
 	templates := template.Must(template.ParseFiles(templatePath))
 
 	renderer := &CustomRenderer{

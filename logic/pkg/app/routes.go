@@ -30,7 +30,7 @@ func (a *App) setupRoutes() {
 	userHandler := handlers.NewUserHandler(baseHandler)
 	notesHandler := handlers.NewNotesHandler(baseHandler)
 	statusHandler := handlers.NewStatusHandler(baseHandler, a.config.StaticContent.StatusPassword)
-	statusHandler.SetupRenderer(a.echo)
+	statusHandler.SetupRenderer(a.echo, a.config.StaticContent.InternalPath)
 
 	// Public routes
 	a.echo.POST("/login", userHandler.Login)
