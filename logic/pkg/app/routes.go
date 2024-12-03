@@ -32,6 +32,10 @@ func (a *App) setupRoutes() {
 	statusHandler := handlers.NewStatusHandler(baseHandler, a.config.StaticContent.StatusPassword)
 	statusHandler.SetupRenderer(a.echo, a.config.StaticContent.InternalPath)
 
+	// Initialize validator
+	validator := middleware.NewCustomValidator()
+	a.echo.Validator = validator
+
 	// Public routes
 	a.echo.POST("/login", userHandler.Login)
 	a.echo.GET("/status/*", statusHandler.StatusHandlerFunc)
