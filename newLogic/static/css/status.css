@@ -1,0 +1,54 @@
+/* static/css/status.css */
+.status-container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.status-section {
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.status-section h2 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 1.5em;
+}
+
+.metrics-display {
+    background: #fff;
+    padding: 15px;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+    overflow-x: auto;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.refresh-button {
+    display: block;
+    margin: 20px auto;
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.refresh-button:hover {
+    background-color: #45a049;
+}
+
+.refresh-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
