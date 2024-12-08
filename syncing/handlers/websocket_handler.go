@@ -163,12 +163,17 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 
 	// Handle WebSocket messages
 	for {
-		_, _, err := conn.ReadMessage()
+		messageType, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Printf("Error reading from WebSocket: %v", err)
 			break
 		}
-		// Handle any WebSocket messages if needed
+
+		// Echo back the message
+		if err := conn.WriteMessage(messageType, message); err != nil {
+			log.Printf("Error writing to WebSocket: %v", err)
+			break
+		}
 	}
 
 }

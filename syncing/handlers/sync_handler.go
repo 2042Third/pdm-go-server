@@ -54,7 +54,7 @@ func (h *SyncHandler) ConsumeRabbitMQMessages(ch *amqp.Channel) {
 		case "add_session":
 			h.handleAddSessionKey(payload)
 		case "delete_session":
-			h.handleDeleteSessionKey(payload)
+			h.handleInvalidateSessionKey(payload)
 		default:
 			log.Printf("Unknown task type: %s", taskType)
 		}
@@ -135,11 +135,11 @@ func (h *SyncHandler) handleAddSessionKey(payload map[string]interface{}) {
 	}
 }
 
-func (h *SyncHandler) handleDeleteSessionKey(payload map[string]interface{}) {
+func (h *SyncHandler) handleInvalidateSessionKey(payload map[string]interface{}) {
 	userIDStr, _ := payload["userId"].(string)
 	sessionKey, _ := payload["sessionKey"].(string)
 
-	log.Printf("Received RabbitMQ for sessionKey deletion for %s with %s\n", userIDStr, sessionKey)
+	log.Printf("Received RabbitMQ for sessionKey invalidation for %s with %s\n", userIDStr, sessionKey)
 
 	userID, err := strconv.ParseUint(userIDStr, 10, 32)
 	if err != nil {
@@ -148,13 +148,16 @@ func (h *SyncHandler) handleDeleteSessionKey(payload map[string]interface{}) {
 	}
 
 	if sessionKey == "" {
-		log.Printf("No session key provided for deletion")
+		log.Printf("No session key provided for invalidation")
 		return
 	}
 
-	if err := h.DB.Delete(&models.SessionKey{}, "user_id = ? AND session_key = ?", userID, sessionKey).Error; err != nil {
-		log.Printf("Failed to delete session: %v", err)
+	// Update the valid field to "0" instead of deleting
+	if err := h.DB.Model(&models.SessionKey{}).
+		Where("user_id = ? AND session_key = ?", userID, sessionKey).
+		Update("valid", "0").Error; err != nil {
+		log.Printf("Failed to invalidate session: %v", err)
 	} else {
-		log.Printf("Session deleted successfully for user: %d", userID)
+		log.Printf("Session invalidated successfully for user: %d", userID)
 	}
 }

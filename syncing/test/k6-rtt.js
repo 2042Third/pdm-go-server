@@ -1,80 +1,129 @@
 import { sleep } from 'k6';
-import { Trend } from 'k6/metrics';
+import { Trend, Counter } from 'k6/metrics';
 import ws from 'k6/ws';
 
-// Create a custom metric to track RTT
 const rttMetric = new Trend('websocket_rtt');
+const messagesReceived = new Counter('messages_received');
+const messagesSent = new Counter('messages_sent');
 
-// Store message timestamps
 const messageTimestamps = new Map();
 
-export default function () {
-  const url = 'ws://localhost:8082/ws';
+export const options = {
+  vus: 50,
+  duration: '40s',
+  iterations: 50,
+  teardownTimeout: '0s',
+  noConnectionReuse: true,
+  gracefulStop: '0s',
+  thresholds: {
+    'websocket_rtt': ['p(95)<1000'],  // 95% of RTT should be under 1000ms
+    'messages_received': ['count>0'],
+    'messages_sent': ['count>0']
+  }
+};
 
-  return ws.connect(url, {}, function (socket) {
+export default function () {
+  const userId = `${__VU}`;
+  const url = `ws://localhost/ws?userId=${userId}`;
+  let messageCount = 0;
+
+  const res = ws.connect(url, null, function (socket) {
     socket.on('open', () => {
-      console.log('WebSocket connection established');
-      // Send first message
+      console.log(`VU ${__VU}: Connected`);
       sendMessage(socket, 1);
     });
 
     socket.on('message', (data) => {
       const endTime = Date.now();
-      const messageId = data.toString(); // Convert message to string
-      const startTime = messageTimestamps.get(messageId);
+      messagesReceived.add(1);
 
+      const key = `${userId}-${messageCount + 1}`;
+      const startTime = messageTimestamps.get(key);
       if (startTime) {
-        const duration = endTime - startTime;
-        console.log(`Message ${messageId} RTT: ${duration}ms`);
-        rttMetric.add(duration);
-        messageTimestamps.delete(messageId);
+        const rtt = endTime - startTime;
+        rttMetric.add(rtt);
+        console.log(`VU ${__VU}: Message ${messageCount + 1} RTT: ${rtt}ms`);
+      }
 
-        // Send next message if we haven't sent 10 yet
-        const nextMessageId = parseInt(messageId) + 1;
-        if (nextMessageId <= 10) {
-          sendMessage(socket, nextMessageId);
-        } else {
-          socket.close();
-        }
+      messageCount++;
+
+      if (messageCount < 5) {
+        sleep(5);
+        sendMessage(socket, messageCount + 1);
+      } else {
+        socket.close(1000);
       }
     });
 
-    socket.on('error', (e) => {
-      console.error('WebSocket error:', e);
-    });
-
     socket.on('close', () => {
-      console.log('WebSocket connection closed');
+      console.log(`VU ${__VU}: Connection closed after ${messageCount} messages`);
     });
 
-    // Set a timeout to close the connection if it hangs
-    setTimeout(function () {
-      socket.close();
-    }, 10000);
+    socket.setTimeout(() => {
+      if (messageCount < 5) {
+        console.log(`VU ${__VU}: Test timeout after ${messageCount} messages`);
+        socket.close(1000);
+      }
+    }, 35000);
   });
+
+  sleep(30);
 }
 
 function sendMessage(socket, messageId) {
-  messageTimestamps.set(messageId.toString(), Date.now());
-  socket.send(messageId.toString());
+  const message = JSON.stringify({
+    messageId: messageId.toString(),
+    userId: `${__VU}`,
+    content: `Message ${messageId} from VU ${__VU}`
+  });
+
+  messageTimestamps.set(`${__VU}-${messageId}`, Date.now());
+  socket.send(message);
+  messagesSent.add(1);
+  console.log(`VU ${__VU}: Sent message ${messageId}`);
 }
 
 export function handleSummary(data) {
-  if (!data.metrics.websocket_rtt) {
-    console.log('No RTT metrics collected');
-    return {
-      stdout: JSON.stringify({
-        error: 'No RTT metrics collected'
-      })
-    };
-  }
+  const wsMetrics = data.metrics.websocket_rtt;
+  const summary = {
+    test_summary: {
+      total_vus: options.vus,
+      duration: options.duration,
+      iterations: options.iterations
+    },
+    connections: {
+      total: data.metrics.ws_sessions ? data.metrics.ws_sessions.count : 0,
+      connecting_time: {
+        avg: (data.metrics.ws_connecting ? data.metrics.ws_connecting.avg : 0).toFixed(2),
+        min: (data.metrics.ws_connecting ? data.metrics.ws_connecting.min : 0).toFixed(2),
+        max: (data.metrics.ws_connecting ? data.metrics.ws_connecting.max : 0).toFixed(2),
+        p95: (data.metrics.ws_connecting ? data.metrics.ws_connecting.p(95) : 0).toFixed(2)
+      }
+    },
+    messages: {
+      sent: data.metrics.messages_sent ? data.metrics.messages_sent.count : 0,
+      received: data.metrics.messages_received ? data.metrics.messages_received.count : 0,
+      rate: {
+        sent_per_second: ((data.metrics.messages_sent ? data.metrics.messages_sent.count : 0) / (data.state.testRunDurationMs / 1000)).toFixed(2),
+        received_per_second: ((data.metrics.messages_received ? data.metrics.messages_received.count : 0) / (data.state.testRunDurationMs / 1000)).toFixed(2)
+      }
+    },
+    rtt_ms: wsMetrics ? {
+      avg: wsMetrics.avg.toFixed(2),
+      min: wsMetrics.min.toFixed(2),
+      max: wsMetrics.max.toFixed(2),
+      med: wsMetrics.med.toFixed(2),
+      p90: wsMetrics.p(90).toFixed(2),
+      p95: wsMetrics.p(95).toFixed(2)
+    } : null,
+    test_run_details: {
+      duration_ms: data.state.testRunDurationMs,
+      data_received: data.metrics.data_received ? data.metrics.data_received.count : 0,
+      data_sent: data.metrics.data_sent ? data.metrics.data_sent.count : 0
+    }
+  };
 
   return {
-    stdout: JSON.stringify({
-      avg_rtt: data.metrics.websocket_rtt.avg,
-      min_rtt: data.metrics.websocket_rtt.min,
-      max_rtt: data.metrics.websocket_rtt.max,
-      p95_rtt: data.metrics.websocket_rtt.p(95)
-    }, null, 2)
+    stdout: JSON.stringify(summary, null, 2)
   };
 }
