@@ -184,7 +184,7 @@ func (h *WebSocketHandler) registerClient(client *ClientConnection) {
 
 	h.clients[client.userID] = append(h.clients[client.userID], client)
 	log.Printf("New client registered for user %s. Total clients: %d",
-		client.userID, len(h.clients[client.userID]))
+		client.userID, len(h.clients))
 }
 
 func (h *WebSocketHandler) unregisterClient(client *ClientConnection) {

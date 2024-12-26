@@ -11,8 +11,8 @@ export const options = {
 };
 
 export default function () {
-  const url = 'ws://localhost:8082/ws';
-  const params = { headers: { 'X-My-Header': 'value' } };
+  const url = `ws://localhost/ws?userId=${__VU}`;
+  const params = { headers: { 'userId': `${__VU}` } };
 
   const transactions = [
     [

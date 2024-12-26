@@ -5,53 +5,95 @@ import ws from 'k6/ws';
 const rttMetric = new Trend('websocket_rtt');
 const messagesReceived = new Counter('messages_received');
 const messagesSent = new Counter('messages_sent');
+const bytesSent = new Counter('bytes_sent');
 
 const messageTimestamps = new Map();
 
 export const options = {
-  vus: 50,
-  duration: '40s',
-  iterations: 50,
-  teardownTimeout: '0s',
-  noConnectionReuse: true,
-  gracefulStop: '0s',
+  vus: 1,
+  iterations: 1,
   thresholds: {
-    'websocket_rtt': ['p(95)<1000'],  // 95% of RTT should be under 1000ms
+    'websocket_rtt': ['p(95)<1000'],
     'messages_received': ['count>0'],
     'messages_sent': ['count>0']
   }
 };
 
+// Generate a large document-like payload
+function generateLargePayload(messageId) {
+  const paragraphs = Array(50).fill(null).map((_, i) => ({
+    id: `p${i}`,
+    text: 'Lorem ipsum '.repeat(100), // ~1KB per paragraph
+    styles: {
+      fontSize: '14px',
+      color: '#000000',
+      bold: true,
+      italic: Math.random() > 0.5,
+      underline: Math.random() > 0.5
+    },
+    changes: Array(20).fill(null).map((_, j) => ({
+      position: j * 10,
+      insert: 'New text '.repeat(5),
+      delete: 10,
+      attributes: { bold: true, italic: true, color: '#ff0000' }
+    }))
+  }));
+
+  return {
+    messageId: messageId,
+    userId: `${__VU}`,
+    documentId: `doc-${__VU}`,
+    timestamp: Date.now(),
+    type: 'document_update',
+    content: paragraphs,
+    metadata: {
+      version: messageId,
+      lastEditor: `user-${__VU}`,
+      collaborators: Array(10).fill(null).map((_, i) => `user-${i}`),
+      permissions: {
+        readers: Array(50).fill(null).map((_, i) => `reader-${i}`),
+        editors: Array(20).fill(null).map((_, i) => `editor-${i}`),
+      }
+    }
+  };
+}
+
 export default function () {
   const userId = `${__VU}`;
+  // const url = `wss://yangyi.dev/ws?userId=${userId}`;
   const url = `ws://localhost/ws?userId=${userId}`;
   let messageCount = 0;
 
   const res = ws.connect(url, null, function (socket) {
     socket.on('open', () => {
       console.log(`VU ${__VU}: Connected`);
-      sendMessage(socket, 1);
+
+      // Initial burst of messages
+      for (let i = 0; i < 3; i++) {
+        sendMessage(socket, messageCount++);
+      }
+
+      // Continue sending messages periodically
+      const interval = setInterval(() => {
+        if (messageCount < 20) { // Increased from 5 to 20 messages per client
+          sendMessage(socket, messageCount++);
+        } else {
+          clearInterval(interval);
+          socket.close(1000);
+        }
+      }, 1000); // Send a message every second
     });
 
     socket.on('message', (data) => {
       const endTime = Date.now();
       messagesReceived.add(1);
 
-      const key = `${userId}-${messageCount + 1}`;
+      const key = `${userId}-${messageCount}`;
       const startTime = messageTimestamps.get(key);
       if (startTime) {
         const rtt = endTime - startTime;
         rttMetric.add(rtt);
-        console.log(`VU ${__VU}: Message ${messageCount + 1} RTT: ${rtt}ms`);
-      }
-
-      messageCount++;
-
-      if (messageCount < 5) {
-        sleep(5);
-        sendMessage(socket, messageCount + 1);
-      } else {
-        socket.close(1000);
+        console.log(`VU ${__VU}: Message ${messageCount} RTT: ${rtt}ms`);
       }
     });
 
@@ -60,10 +102,8 @@ export default function () {
     });
 
     socket.setTimeout(() => {
-      if (messageCount < 5) {
-        console.log(`VU ${__VU}: Test timeout after ${messageCount} messages`);
-        socket.close(1000);
-      }
+      console.log(`VU ${__VU}: Test timeout after ${messageCount} messages`);
+      socket.close(1000);
     }, 35000);
   });
 
@@ -71,16 +111,15 @@ export default function () {
 }
 
 function sendMessage(socket, messageId) {
-  const message = JSON.stringify({
-    messageId: messageId.toString(),
-    userId: `${__VU}`,
-    content: `Message ${messageId} from VU ${__VU}`
-  });
+  const payload = generateLargePayload(messageId);
+  const message = JSON.stringify(payload);
 
   messageTimestamps.set(`${__VU}-${messageId}`, Date.now());
   socket.send(message);
   messagesSent.add(1);
-  console.log(`VU ${__VU}: Sent message ${messageId}`);
+  bytesSent.add(message.length);
+
+  console.log(`VU ${__VU}: Sent message ${messageId}, size: ${(message.length/1024).toFixed(2)}KB`);
 }
 
 export function handleSummary(data) {
