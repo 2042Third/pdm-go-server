@@ -1,43 +1,65 @@
 package services
 
 import (
-"fmt"
-"log"
-"net/smtp"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"pdm-logic-server/pkg/models"
 )
 
-func sendEmail(from, to, subject, body string) error {
-	// SMTP server configuration
-	smtpHost := "smtp.simplelogin.io"
-	smtpPort := "587"
-	username := "your-simplelogin-email@example.com" // Replace with your SimpleLogin email
-	password := "your-simplelogin-api-key"          // Replace with your API key
+func SendEmail(from, to, subject, body, apiKey string) error {
+	url := "https://send.api.mailtrap.io/api/send"
 
-	// Construct the email headers and body
-	message := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s", from, to, subject, body)
-
-	// Connect to the SMTP server
-	auth := smtp.PlainAuth("", username, password, smtpHost)
-
-	// Send the email
-	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, []byte(message))
-	if err != nil {
-		return fmt.Errorf("failed to send email: %w", err)
+	emailData := models.EmailCall{
+		To: []models.EmailAddress{
+			{Email: "18604713262my@gmail.com", Name: "Test Name"},
+		},
+		From: models.EmailAddress{
+			Email: "hi@demomailtrap.com",
+			Name:  "Test Email",
+		},
+		Subject:  "Testing Email Sending for PDM Notes",
+		Html:     "<p>This is a testing email for PDM Notes.  <strong>PDM Notes</strong>.</p>",
+		Text:     "Testing Email",
+		Category: "API Test",
 	}
+
+	jsonData, err := json.Marshal(emailData)
+	if err != nil {
+		log.Printf("Failed to marshal payload: %v", err)
+		return err
+	}
+
+	fmt.Println(string(jsonData))
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Api-Token", apiKey)
+
+	fmt.Printf("api key: %s\n ", apiKey)
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	// Change this line to use a different variable name
+	responseBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(res)
+	fmt.Println(string(responseBody)) // Convert byte slice to string for printing
 
 	return nil
-}
-
-func main() {
-	// Example usage
-	from := "alias@simplelogin.io"        // Replace with your alias or custom domain alias
-	to := "recipient@example.com"        // Replace with recipient's email
-	subject := "Test Email from Go"
-	body := "This is a test email sent via SimpleLogin relay from a Go server."
-
-	if err := sendEmail(from, to, subject, body); err != nil {
-		log.Fatalf("Error sending email: %v", err)
-	}
-
-	log.Println("Email sent successfully!")
 }

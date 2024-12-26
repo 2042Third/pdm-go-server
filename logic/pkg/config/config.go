@@ -33,6 +33,7 @@ type Config struct {
 	Redis         RedisConfig
 	Database      DatabaseConfig
 	Auth          AuthConfig
+	Email         EmailConfig
 	Logging       LogConfig
 	Metrics       MetricsConfig
 }
@@ -72,6 +73,10 @@ type LogConfig struct {
 type MetricsConfig struct {
 	Enabled bool
 	Path    string
+}
+
+type EmailConfig struct {
+	ApiKey string
 }
 
 func LoadConfig() (*Config, error) {
@@ -116,6 +121,9 @@ func LoadConfig() (*Config, error) {
 		Auth: AuthConfig{
 			PublicKey:  publicKey,
 			PrivateKey: privateKey,
+		},
+		Email: EmailConfig{
+			ApiKey: getEnvOrDefault("EMAIL_API_KEY", ""),
 		},
 		Redis: RedisConfig{
 			Address:  os.Getenv("REDIS_URL"),
