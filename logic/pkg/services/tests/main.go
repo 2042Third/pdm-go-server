@@ -12,8 +12,8 @@ Used for email testing purposes
 
 func main() {
 	// Example usage
-	from := "alias@simplelogin.io" // Replace with your alias or custom domain alias
-	to := "recipient@example.com"  // Replace with recipient's email
+	from := "hi@demomailtrap.com"   // Replace with your alias or custom domain alias
+	to := "18604713262my@gmail.com" // Replace with recipient's email
 	subject := "Test Email from Go"
 	body := "This is a test email sent via SimpleLogin relay from a Go server."
 	//apiKey := os.Getenv("EMAIL_API_KEY")

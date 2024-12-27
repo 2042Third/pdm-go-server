@@ -4,27 +4,50 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"pdm-logic-server/pkg/models"
+	"pdm-logic-server/templates"
 )
+
+func generateVerificationCode() string {
+	code := rand.Intn(1000000)
+	return fmt.Sprintf("%06d", code) // Ensures 6 digits with leading zeros
+}
 
 func SendEmail(from, to, subject, body, apiKey string) error {
 	url := "https://send.api.mailtrap.io/api/send"
 
+	tmpl, err := template.New("verification").Parse(templates.EmailTemplate)
+	if err != nil {
+		return err
+	}
+
+	var htmlBuffer bytes.Buffer
+	data := models.EmailTemplateData{
+		Code: generateVerificationCode(),
+	}
+
+	err = tmpl.Execute(&htmlBuffer, data)
+	if err != nil {
+		return err
+	}
+
 	emailData := models.EmailCall{
 		To: []models.EmailAddress{
-			{Email: "18604713262my@gmail.com", Name: "Test Name"},
+			{Email: to, Name: ""},
 		},
 		From: models.EmailAddress{
-			Email: "hi@demomailtrap.com",
-			Name:  "Test Email",
+			Email: from,
+			Name:  "PDM Notes",
 		},
-		Subject:  "Testing Email Sending for PDM Notes",
-		Html:     "<p>This is a testing email for PDM Notes.  <strong>PDM Notes</strong>.</p>",
-		Text:     "Testing Email",
-		Category: "API Test",
+		Subject:  "Your PDM Notes Verification Code",
+		Html:     htmlBuffer.String(),
+		Text:     fmt.Sprintf("Your PDM Notes verification code is: %s", data.Code),
+		Category: "PDM Notes Email Verification",
 	}
 
 	jsonData, err := json.Marshal(emailData)

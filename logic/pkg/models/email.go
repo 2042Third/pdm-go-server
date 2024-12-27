@@ -1,5 +1,10 @@
 package models
 
+type EmailTemplateData struct {
+	Code  string
+	Email string
+}
+
 type EmailAddress struct {
 	Email string `json:"email"`
 	Name  string `json:"name"`
