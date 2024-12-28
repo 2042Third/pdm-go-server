@@ -73,13 +73,14 @@ func (c *RabbitMQCtx) DispatchAddRefresh(userID, refreshKey string) {
 		"refreshKey": refreshKey,
 	}
 
-	if err := c.DispatchRabbitMQMessage("add_session", payload); err != nil {
-		log.Printf("Failed to dispatch add session: %v", err)
+	if err := c.DispatchRabbitMQMessage("add_session_refresh", payload); err != nil {
+		log.Printf("Failed to dispatch add session refresh: %v", err)
 	}
 }
 
 // DispatchAddSession sends an "add session" task to RabbitMQ
 func (c *RabbitMQCtx) DispatchAddSession(userID, sessionKey string, expiration int64) {
+	log.Printf("DispatchAddSession for user %s at %f\n", userID, float64(expiration))
 	payload := map[string]interface{}{
 		"userId":     userID,
 		"sessionKey": sessionKey,

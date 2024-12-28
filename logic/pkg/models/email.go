@@ -1,6 +1,6 @@
 package models
 
-type EmailTemplateData struct {
+type EmailVerificationTemplateData struct {
 	Code  string
 	Email string
 }

@@ -7,18 +7,12 @@ import (
 	"html/template"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"pdm-logic-server/pkg/models"
 	"pdm-logic-server/templates"
 )
 
-func generateVerificationCode() string {
-	code := rand.Intn(1000000)
-	return fmt.Sprintf("%06d", code) // Ensures 6 digits with leading zeros
-}
-
-func SendEmail(from, to, subject, body, apiKey string) error {
+func SendEmail(from, to, subject, body, verificationCode, apiKey string) error {
 	url := "https://send.api.mailtrap.io/api/send"
 
 	tmpl, err := template.New("verification").Parse(templates.EmailTemplate)
@@ -27,8 +21,8 @@ func SendEmail(from, to, subject, body, apiKey string) error {
 	}
 
 	var htmlBuffer bytes.Buffer
-	data := models.EmailTemplateData{
-		Code: generateVerificationCode(),
+	data := models.EmailVerificationTemplateData{
+		Code: verificationCode,
 	}
 
 	err = tmpl.Execute(&htmlBuffer, data)

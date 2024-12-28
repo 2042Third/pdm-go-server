@@ -48,6 +48,7 @@ func (h *UserHandler) Login(c echo.Context) error {
 		return errors.NewAppError(http.StatusInternalServerError, "Failed to generate token", err)
 	}
 
+	h.storage.R.DispatchAddSession(strconv.Itoa(int(userId)), token, expiration)
 	if err := h.cacheUserSession(ctx, req.Email, userId, token, time.Unix(expiration, 0)); err != nil {
 		return err
 	}
@@ -124,7 +125,8 @@ func (h *UserHandler) Logout(c echo.Context) error {
 		})
 	}
 
-	h.storage.R.DispatchDeleteSession(userId, sessionKey)
+	// Keep the session key in the database
+	//h.storage.R.DispatchDeleteSession(userId, sessionKey)
 
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Logout successful",

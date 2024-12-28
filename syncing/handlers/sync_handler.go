@@ -49,10 +49,10 @@ func (h *SyncHandler) ConsumeRabbitMQMessages(ch *amqp.Channel) {
 		switch taskType {
 		case "note_update":
 			h.handleNoteUpdate(payload)
-		case "add_refresh":
-			h.handleAddRefreshKey(payload)
 		case "add_session":
 			h.handleAddSessionKey(payload)
+		case "add_session_refresh":
+			h.handleAddRefreshKey(payload)
 		case "delete_session":
 			h.handleInvalidateSessionKey(payload)
 		default:

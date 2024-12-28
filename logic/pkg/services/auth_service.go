@@ -5,9 +5,41 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"pdm-logic-server/pkg/models"
 	"time"
 )
+
+func GenerateVerificationCode() string {
+	code := rand.Intn(1000000)
+	return fmt.Sprintf("%06d", code) // Ensures 6 digits with leading zeros
+}
+
+func RegisterUser(S *Storage, ctx context.Context, name, email, password string) (uint, error) {
+	// Check if user already exists
+	var user models.User
+	err := S.DB.Where("email = ?", email).First(&user).Error
+	if err == nil {
+		return 0, fmt.Errorf("user with email %s already exists", email)
+	}
+
+	// Create new user
+	user = models.User{
+		Name:        name,
+		Email:       email,
+		Spw:         password,
+		Creation:    time.Now().Format("2006-01-02 15:04:05"),
+		Product:     "Web",
+		RegisterKey: GenerateVerificationCode(),
+	}
+
+	err = S.DB.Create(&user).Error
+	if err != nil {
+		return 0, err
+	}
+
+	return user.ID, nil
+}
 
 func ValidateUser(S *Storage, ctx context.Context, email, password string) (uint, bool) {
 	var user models.User
