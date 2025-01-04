@@ -15,12 +15,14 @@ func GenerateVerificationCode() string {
 	return fmt.Sprintf("%06d", code) // Ensures 6 digits with leading zeros
 }
 
-func RegisterUser(S *Storage, ctx context.Context, name, email, password string) (uint, error) {
+func RegisterUser(S *Storage, ctx context.Context, name, email, password string) (models.SignupInternalResponse, error) {
 	// Check if user already exists
 	var user models.User
 	err := S.DB.Where("email = ?", email).First(&user).Error
 	if err == nil {
-		return 0, fmt.Errorf("user with email %s already exists", email)
+		return models.SignupInternalResponse{
+			UserId: 0,
+		}, fmt.Errorf("user with email %s already exists", email)
 	}
 
 	// Create new user
@@ -29,16 +31,38 @@ func RegisterUser(S *Storage, ctx context.Context, name, email, password string)
 		Email:       email,
 		Spw:         password,
 		Creation:    time.Now().Format("2006-01-02 15:04:05"),
-		Product:     "Web",
+		Product:     "pdm web 2",
 		RegisterKey: GenerateVerificationCode(),
+		Registered:  "0",
 	}
 
 	err = S.DB.Create(&user).Error
 	if err != nil {
-		return 0, err
+		return models.SignupInternalResponse{UserId: 0}, err
 	}
 
-	return user.ID, nil
+	return models.SignupInternalResponse{
+		UserId:           user.ID,
+		VerificationCode: user.RegisterKey,
+	}, nil
+}
+
+func ValidateVerificationCode(S *Storage, ctx context.Context, userEmail, code string) bool {
+	var user models.User
+	err := S.DB.Where("email = ? AND register_key = ?", userEmail, code).First(&user).Error
+	if err != nil {
+		return false
+	}
+
+	// Update user to be registered
+	user.Registered = "1"
+	err = S.DB.Save(&user).Error
+	if err != nil {
+		log.Printf("Failed to update user registration status: %v", err)
+		return false
+	}
+
+	return true
 }
 
 func ValidateUser(S *Storage, ctx context.Context, email, password string) (uint, bool) {

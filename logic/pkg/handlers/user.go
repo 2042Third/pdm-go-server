@@ -8,8 +8,10 @@ import (
 	"log"
 	"net/http"
 	"pdm-logic-server/pkg/errors"
+	"pdm-logic-server/pkg/models"
 	"pdm-logic-server/pkg/services"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -21,15 +23,73 @@ func NewUserHandler(base *BaseHandler) *UserHandler {
 	return &UserHandler{BaseHandler: base}
 }
 
-type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
+func (h *UserHandler) ValidateVerificationCode(c echo.Context) error {
+	ctx := context.Background()
+
+	var req models.VerificationRequest
+	if err := c.Bind(&req); err != nil {
+		return errors.NewAppError(http.StatusBadRequest, "Invalid request format", err)
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return errors.NewAppError(http.StatusBadRequest, "Invalid request data", err)
+	}
+
+	if !services.ValidateVerificationCode(h.storage, ctx, req.Email, req.VerificationCode) {
+		return errors.NewAppError(http.StatusUnauthorized, "Invalid verification code", nil)
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Verification successful",
+	})
+}
+
+func (h *UserHandler) Register(c echo.Context) error {
+	ctx := context.Background()
+
+	var req models.LoginRequest
+	if err := c.Bind(&req); err != nil {
+		return errors.NewAppError(http.StatusBadRequest, "Invalid request format", err)
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return errors.NewAppError(http.StatusBadRequest, "Invalid request data", err)
+	}
+
+	// Strip whitespace from email
+	req.Email = strings.TrimSpace(req.Email)
+
+	// Store the user in the database
+	signupInternalRes, err := services.RegisterUser(h.storage, ctx, "", req.Email, req.Password) // Use empty string for name
+	if err != nil {
+		return c.JSON(http.StatusConflict, map[string]interface{}{
+			"message": "Email already exists",
+		})
+	}
+
+	from := "hi@demomailtrap.com"
+	to := req.Email
+	subject := "PDM Notes Registration Code"
+	body := "This is the registration code for PDM Notes. "
+
+	if err := services.SendEmail(from, to, subject, body, signupInternalRes.VerificationCode, h.BaseHandler.config.Email.ApiKey); err != nil {
+		log.Println("Failed to send email: ", err)
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"userId":  signupInternalRes.UserId,
+			"message": "Signup successful, but verification email failed to send, please try again later",
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"userId":  signupInternalRes.UserId,
+		"message": "Registration successful, check your email for verification code",
+	})
 }
 
 func (h *UserHandler) Login(c echo.Context) error {
 	ctx := context.Background()
 
-	var req LoginRequest
+	var req models.LoginRequest
 	if err := c.Bind(&req); err != nil {
 		return errors.NewAppError(http.StatusBadRequest, "Invalid request format", err)
 	}

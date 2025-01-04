@@ -24,7 +24,7 @@ func (a *App) setupRoutes() {
 	}
 
 	// Create base handler
-	baseHandler := handlers.NewBaseHandler(a.storage, a.authService, a.logger)
+	baseHandler := handlers.NewBaseHandler(a.storage, a.authService, a.logger, a.config)
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(baseHandler)
@@ -38,6 +38,8 @@ func (a *App) setupRoutes() {
 
 	// Public routes
 	a.echo.POST("/login", userHandler.Login)
+	a.echo.POST("/signup", userHandler.Register)
+	a.echo.POST("/signup/verify", userHandler.ValidateVerificationCode)
 	a.echo.GET("/status/*", statusHandler.StatusHandlerFunc)
 
 	// Protected routes
