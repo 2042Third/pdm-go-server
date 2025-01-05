@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"pdm-logic-server/pkg/models"
+	"strconv"
 	"time"
 )
 
@@ -30,7 +31,7 @@ func RegisterUser(S *Storage, ctx context.Context, name, email, password string)
 		Name:        name,
 		Email:       email,
 		Spw:         password,
-		Creation:    time.Now().Format("2006-01-02 15:04:05"),
+		Creation:    strconv.FormatInt(time.Now().Unix(), 10), // Use unix timestamp
 		Product:     "pdm web 2",
 		RegisterKey: GenerateVerificationCode(),
 		Registered:  "0",
