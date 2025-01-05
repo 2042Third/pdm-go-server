@@ -76,7 +76,9 @@ type MetricsConfig struct {
 }
 
 type EmailConfig struct {
-	ApiKey string
+	ApiKey             string
+	TurnstileSiteKey   string
+	TurnstileSecretKey string
 }
 
 func LoadConfig() (*Config, error) {
@@ -123,7 +125,9 @@ func LoadConfig() (*Config, error) {
 			PrivateKey: privateKey,
 		},
 		Email: EmailConfig{
-			ApiKey: getEnvOrDefault("EMAIL_API_KEY", ""),
+			ApiKey:             getEnvOrDefault("EMAIL_API_KEY", ""),
+			TurnstileSiteKey:   getEnvOrDefault("CF_TURNSTILE_SITE_KEY", ""),
+			TurnstileSecretKey: getEnvOrDefault("CF_TURNSTILE_SECRET_KEY", ""),
 		},
 		Redis: RedisConfig{
 			Address:  os.Getenv("REDIS_URL"),

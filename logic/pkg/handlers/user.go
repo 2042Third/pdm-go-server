@@ -2,11 +2,15 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
+	"io"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"pdm-logic-server/pkg/errors"
 	"pdm-logic-server/pkg/models"
 	"pdm-logic-server/pkg/services"
@@ -44,16 +48,109 @@ func (h *UserHandler) ValidateVerificationCode(c echo.Context) error {
 	})
 }
 
+// Helper function to get real IP address
+func getRealIP(c echo.Context) string {
+	// First check CF-Connecting-IP header (most reliable for Cloudflare)
+	if ip := c.Request().Header.Get("CF-Connecting-IP"); ip != "" {
+		return ip
+	}
+
+	// Then check X-Forwarded-For
+	if xff := c.Request().Header.Get("X-Forwarded-For"); xff != "" {
+		ips := strings.Split(xff, ",")
+		if len(ips) > 0 {
+			// Get the first IP (client IP) and trim space
+			return strings.TrimSpace(ips[0])
+		}
+	}
+
+	// Then X-Real-IP
+	if xrip := c.Request().Header.Get("X-Real-IP"); xrip != "" {
+		return strings.TrimSpace(xrip)
+	}
+
+	// Finally fall back to RemoteAddr
+	remoteAddr := c.Request().RemoteAddr
+	if ip, _, err := net.SplitHostPort(remoteAddr); err == nil {
+		return ip
+	}
+
+	return remoteAddr
+}
+
+func (h *UserHandler) verifyTurnstile(token string, clientIP string) (*models.TurnstileResponse, error) {
+	formData := url.Values{}
+	formData.Set("secret", h.BaseHandler.config.Email.TurnstileSecretKey)
+	formData.Set("response", token)
+	formData.Set("remoteip", clientIP)
+
+	log.Printf("Verifying turnstile token for IP: %s", clientIP)
+
+	resp, err := http.PostForm(
+		"https://challenges.cloudflare.com/turnstile/v0/siteverify",
+		formData,
+	)
+	if err != nil {
+		log.Printf("Turnstile verification request failed: %v", err)
+		return nil, fmt.Errorf("failed to verify turnstile: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Failed to read response body: %v", err)
+		return nil, fmt.Errorf("failed to read response: %v", err)
+	}
+
+	log.Printf("Turnstile response: %s", string(body))
+
+	var result models.TurnstileResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		log.Printf("Failed to decode response: %v", err)
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	if !result.Success {
+		log.Printf("Turnstile verification failed. Errors: %v", result.ErrorCodes)
+	}
+
+	return &result, nil
+}
+
 func (h *UserHandler) Register(c echo.Context) error {
 	ctx := context.Background()
 
-	var req models.LoginRequest
+	var req models.SignupRequest
 	if err := c.Bind(&req); err != nil {
 		return errors.NewAppError(http.StatusBadRequest, "Invalid request format", err)
 	}
 
 	if err := c.Validate(&req); err != nil {
 		return errors.NewAppError(http.StatusBadRequest, "Invalid request data", err)
+	}
+
+	clientIP := getRealIP(c)
+	log.Printf("Processing registration request from IP: %s", clientIP)
+	log.Printf("Pre verification secret key check: %s", h.BaseHandler.config.Email.TurnstileSecretKey)
+
+	result, err := h.verifyTurnstile(req.TurnstileToken, clientIP)
+	if err != nil {
+		log.Printf("Turnstile verification error: %v", err)
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"message": "Verification failed",
+			"error":   err.Error(),
+		})
+	}
+
+	if !result.Success {
+		errorMsg := "Verification failed"
+		if len(result.ErrorCodes) > 0 {
+			errorMsg = fmt.Sprintf("Verification failed: %v", result.ErrorCodes)
+		}
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"message": errorMsg,
+			"errors":  result.ErrorCodes,
+		})
 	}
 
 	// Strip whitespace from email
