@@ -31,7 +31,7 @@ func RegisterUser(S *Storage, ctx context.Context, name, email, password string)
 		Name:        name,
 		Email:       email,
 		Spw:         password,
-		Creation:    strconv.FormatInt(time.Now().Unix(), 10), // Use unix timestamp
+		Creation:    strconv.FormatInt(time.Now().UnixMilli(), 10), // Use unix timestamp
 		Product:     "pdm web 2",
 		RegisterKey: GenerateVerificationCode(),
 		Registered:  "0",
