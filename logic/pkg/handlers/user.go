@@ -28,7 +28,6 @@ func NewUserHandler(base *BaseHandler) *UserHandler {
 }
 
 func (h *UserHandler) ValidateVerificationCode(c echo.Context) error {
-	ctx := context.Background()
 
 	var req models.VerificationRequest
 	if err := c.Bind(&req); err != nil {
@@ -39,13 +38,27 @@ func (h *UserHandler) ValidateVerificationCode(c echo.Context) error {
 		return errors.NewAppError(http.StatusBadRequest, "Invalid request data", err)
 	}
 
-	if !services.ValidateVerificationCode(h.storage, ctx, req.Email, req.VerificationCode) {
+	if !services.ValidateVerificationCode(h.storage, req.Email, req.VerificationCode) {
 		return errors.NewAppError(http.StatusUnauthorized, "Invalid verification code", nil)
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Verification successful",
 	})
+}
+
+func (h *UserHandler) ResendVerificationCode(email, verificationCode string) error {
+	from := "hi@demomailtrap.com"
+	to := email
+	subject := "PDM Notes Registration Code"
+	body := "This is the registration code for PDM Notes. "
+
+	if err := services.SendEmail(from, to, subject, body, verificationCode, h.BaseHandler.config.Email.ApiKey); err != nil {
+		log.Println("Failed to send email: ", err)
+		return errors.NewAppError(http.StatusInternalServerError, "Failed to send email", err)
+	}
+
+	return nil
 }
 
 // Helper function to get real IP address
@@ -222,6 +235,22 @@ func (h *UserHandler) Login(c echo.Context) error {
 	userId, isValid := services.ValidateUser(h.storage, ctx, req.Email, req.Password)
 	if !isValid {
 		return errors.NewAppError(http.StatusUnauthorized, "Invalid credentials", nil)
+	}
+
+	userinfo, err := services.GetUserInfo(h.storage, ctx, userId)
+	if err != nil {
+		return errors.NewAppError(http.StatusInternalServerError, "Failed to get user info", err)
+	}
+	if userinfo.Registered == "0" {
+		code, err := services.MakeNewVerificationCode(h.storage, ctx, req.Email)
+		if err != nil {
+			return errors.NewAppError(http.StatusInternalServerError, "Unverified Email: Failed to make new verification code", err)
+		}
+		err = h.ResendVerificationCode(req.Email, code)
+		if err != nil {
+			return errors.NewAppError(http.StatusInternalServerError, "Unverified Email: Failed to resend verification code", err)
+		}
+		return errors.NewAppError(http.StatusUnauthorized, "Unverified Email: new verification email sent, please check", nil)
 	}
 
 	token, expiration, err := h.authService.GenerateToken(req.Email, userId)

@@ -16,6 +16,24 @@ func GenerateVerificationCode() string {
 	return fmt.Sprintf("%06d", code) // Ensures 6 digits with leading zeros
 }
 
+func MakeNewVerificationCode(S *Storage, ctx context.Context, email string) (string, error) {
+	var user models.User
+	err := S.DB.Where("email = ?", email).First(&user).Error
+	if err != nil {
+		return "", fmt.Errorf("user with email %s not found", email)
+	}
+
+	// Generate new verification code
+	code := GenerateVerificationCode()
+	user.RegisterKey = code
+	err = S.DB.Save(&user).Error
+	if err != nil {
+		return "", err
+	}
+
+	return code, nil
+}
+
 func RegisterUser(S *Storage, ctx context.Context, name, email, password string) (models.SignupInternalResponse, error) {
 	// Check if user already exists
 	var user models.User
@@ -48,7 +66,7 @@ func RegisterUser(S *Storage, ctx context.Context, name, email, password string)
 	}, nil
 }
 
-func ValidateVerificationCode(S *Storage, ctx context.Context, userEmail, code string) bool {
+func ValidateVerificationCode(S *Storage, userEmail, code string) bool {
 	var user models.User
 	err := S.DB.Where("email = ? AND register_key = ?", userEmail, code).First(&user).Error
 	if err != nil {
@@ -76,11 +94,12 @@ func ValidateUser(S *Storage, ctx context.Context, email, password string) (uint
 	// If validation successful, cache the UserInfo
 	if password == user.Spw {
 		userInfo := models.UserInfo{
-			ID:       user.ID,
-			Name:     user.Name,
-			Creation: user.Creation,
-			Product:  user.Product,
-			Email:    user.Email,
+			ID:         user.ID,
+			Name:       user.Name,
+			Creation:   user.Creation,
+			Product:    user.Product,
+			Email:      user.Email,
+			Registered: user.Registered,
 		}
 
 		// Serialize to JSON before caching
@@ -117,7 +136,7 @@ func GetUserInfo(S *Storage, ctx context.Context, userID uint) (*models.UserInfo
 
 	// Cache miss or unmarshal error, get from DB
 	err = S.DB.Model(&models.User{}).
-		Select("id", "name", "creation", "product", "email").
+		Select("id", "name", "creation", "product", "email", "registered").
 		Where("id = ?", userID).
 		First(&userInfo).Error
 	if err != nil {

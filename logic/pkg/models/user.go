@@ -21,11 +21,12 @@ type User struct {
 
 // UserInfo represents the userinfo that is safe to return to the client
 type UserInfo struct {
-	ID       uint   `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name     string `gorm:"column:name" json:"name"`
-	Creation string `gorm:"column:creation" json:"creation"`
-	Product  string `gorm:"column:product" json:"product"`
-	Email    string `gorm:"column:email" json:"email"`
+	ID         uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name       string `gorm:"column:name" json:"name"`
+	Creation   string `gorm:"column:creation" json:"creation"`
+	Product    string `gorm:"column:product" json:"product"`
+	Email      string `gorm:"column:email" json:"email"`
+	Registered string `gorm:"column:registered" json:"registered"`
 }
 
 func (User) TableName() string {
