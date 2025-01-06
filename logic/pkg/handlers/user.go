@@ -250,7 +250,10 @@ func (h *UserHandler) Login(c echo.Context) error {
 		if err != nil {
 			return errors.NewAppError(http.StatusInternalServerError, "Unverified Email: Failed to resend verification code", err)
 		}
-		return errors.NewAppError(http.StatusUnauthorized, "Unverified Email: new verification email sent, please check", nil)
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"message": "Unverified Email: new verification email sent, please check",
+			"error":   "StatusUnauthorized",
+		})
 	}
 
 	token, expiration, err := h.authService.GenerateToken(req.Email, userId)
