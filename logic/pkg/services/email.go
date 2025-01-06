@@ -38,10 +38,22 @@ func SendEmail(from, to, subject, body, verificationCode, apiKey string) error {
 			Email: from,
 			Name:  "PDM Notes",
 		},
-		Subject:  "Your PDM Notes Verification Code",
+		Subject:  subject,
 		Html:     htmlBuffer.String(),
 		Text:     fmt.Sprintf("Your PDM Notes verification code is: %s", data.Code),
 		Category: "PDM Notes Email Verification",
+		// Add these headers to improve deliverability
+		Headers: &models.Headers{
+			XMessageSource:        "pdm.pw", // Your domain
+			XMailer:               "PDM Notes",
+			Precedence:            "transactional",
+			XAutoResponseSuppress: "OOF, AutoReply",
+			ListUnsubscribe:       fmt.Sprintf("<mailto:unsubscribe@%s>", "pdm.pw"),
+		},
+		CustomVariables: &models.CustomVariables{
+			App:       "PDM Notes",
+			EmailType: "Verification",
+		},
 	}
 
 	jsonData, err := json.Marshal(emailData)
@@ -61,7 +73,7 @@ func SendEmail(from, to, subject, body, verificationCode, apiKey string) error {
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Api-Token", apiKey)
 
-	fmt.Printf("api key: %s\n ", apiKey)
+	//fmt.Printf("api key: %s\n ", apiKey)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {

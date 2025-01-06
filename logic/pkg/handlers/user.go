@@ -176,7 +176,7 @@ func (h *UserHandler) Register(c echo.Context) error {
 		})
 	}
 
-	from := "hi@demomailtrap.com"
+	from := "register@pdm.pw"
 	to := req.Email
 	subject := "PDM Notes Registration Code"
 	body := "This is the registration code for PDM Notes. "

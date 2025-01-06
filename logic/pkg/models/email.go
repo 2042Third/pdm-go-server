@@ -18,12 +18,18 @@ type Attachment struct {
 }
 
 type CustomVariables struct {
-	UserId  string `json:"user_id,omitempty"`
-	BatchId string `json:"batch_id,omitempty"`
+	App       string `json:"app,omitempty"`
+	EmailType string `json:"email_type,omitempty"`
+	UserId    string `json:"user_id,omitempty"`
+	BatchId   string `json:"batch_id,omitempty"`
 }
 
 type Headers struct {
-	XMessageSource string `json:"X-Message-Source,omitempty"`
+	XMessageSource        string `json:"X-Message-Source,omitempty"`
+	XMailer               string `json:"X-Mailer,omitempty"`
+	Precedence            string `json:"Precedence,omitempty"`
+	XAutoResponseSuppress string `json:"X-Auto-Response-Suppress,omitempty"`
+	ListUnsubscribe       string `json:"List-Unsubscribe,omitempty"`
 }
 
 type EmailCall struct {
