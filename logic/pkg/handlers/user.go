@@ -131,7 +131,6 @@ func (h *UserHandler) Register(c echo.Context) error {
 
 	clientIP := getRealIP(c)
 	log.Printf("Processing registration request from IP: %s", clientIP)
-	log.Printf("Pre verification secret key check: %s", h.BaseHandler.config.Email.TurnstileSecretKey)
 
 	result, err := h.verifyTurnstile(req.TurnstileToken, clientIP)
 	if err != nil {
@@ -194,6 +193,31 @@ func (h *UserHandler) Login(c echo.Context) error {
 	if err := c.Validate(&req); err != nil {
 		return errors.NewAppError(http.StatusBadRequest, "Invalid request data", err)
 	}
+
+	clientIP := getRealIP(c)
+
+	result, err := h.verifyTurnstile(req.TurnstileToken, clientIP)
+	if err != nil {
+		log.Printf("Signin verification error: %v", err)
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"message": "Verification failed",
+			"error":   err.Error(),
+		})
+	}
+
+	if !result.Success {
+		errorMsg := "Verification failed"
+		if len(result.ErrorCodes) > 0 {
+			errorMsg = fmt.Sprintf("Signin failed: %v", result.ErrorCodes)
+		}
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"message": errorMsg,
+			"errors":  result.ErrorCodes,
+		})
+	}
+
+	// Strip whitespace from email
+	req.Email = strings.TrimSpace(req.Email)
 
 	userId, isValid := services.ValidateUser(h.storage, ctx, req.Email, req.Password)
 	if !isValid {

@@ -58,7 +58,7 @@ const EmailTemplate = `<!DOCTYPE html>
         </div>
         <div class="content">
             <p>Hello,</p>
-            <p>A verification code has been requested for your PDM Notes account registration. Please use the following code to verify your email address:</p>
+            <p>Your email verification code:</p>
             
             <div class="verification-code">
                 {{.Code}}
