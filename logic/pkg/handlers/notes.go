@@ -2,10 +2,8 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"github.com/labstack/echo/v4"
-	"github.com/streadway/amqp"
-	"log"
 	"net/http"
 	"pdm-logic-server/pkg/errors"
 	"pdm-logic-server/pkg/models"
@@ -52,40 +50,40 @@ func (h *NotesHandler) getUserId(ctx context.Context, email string) (uint, error
 }
 
 func (h *NotesHandler) CreateNote(c echo.Context) error {
-	//ctx := context.Background()
-	log.Println("Login request received")
-	creds := new(models.Notes)
-	if err := c.Bind(creds); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request"})
+	ctx := context.Background()
+
+	userId := uint(c.Get("userId").(float64))
+	note, err := h.storage.CreateNote(ctx, userId)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"message": "Failed to create note",
+			"error":   err.Error(),
+		})
 	}
-	return c.JSON(http.StatusInternalServerError, map[string]string{
-		"message": "Not implemented",
-	})
+
+	fmt.Printf("Created note: %v\n", note.NoteID)
+
+	return c.JSON(http.StatusOK, note)
 }
 
 func (h *NotesHandler) UpdateNotes(c echo.Context) error {
-	//ctx := context.Background()
-
-	return c.JSON(http.StatusInternalServerError, map[string]string{
-		"message": "Not implemented",
-	})
-}
-
-// Publish note update to available clients
-func publishNoteUpdate(ch *amqp.Channel, userID string, update interface{}) error {
-	msg, err := json.Marshal(update)
-	if err != nil {
-		return err
+	var req models.Notes
+	if err := c.Bind(&req); err != nil {
+		return errors.NewAppError(http.StatusBadRequest, "Invalid request format", err)
 	}
 
-	return ch.Publish(
-		"notes_exchange",      // exchange
-		"note_update."+userID, // routing key
-		false,                 // mandatory
-		false,                 // immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        msg,
-		},
-	)
+	if err := c.Validate(&req); err != nil {
+		return errors.NewAppError(http.StatusBadRequest, "Invalid request data", err)
+	}
+
+	ctx := context.Background()
+
+	err := h.storage.UpdateNote(ctx, req)
+	if err != nil {
+		return errors.NewAppError(http.StatusInternalServerError, "Failed to update note", err)
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "note updated",
+	})
 }

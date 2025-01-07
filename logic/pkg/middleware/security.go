@@ -57,8 +57,14 @@ func CreateJWTMiddleware(publicKey ed25519.PublicKey) echo.MiddlewareFunc {
 				return echo.NewHTTPError(http.StatusUnauthorized, "invalid email claim")
 			}
 
+			userId, ok := claims["userId"]
+			if !ok {
+				return echo.NewHTTPError(http.StatusUnauthorized, "invalid userId claim")
+			}
+
 			// Set claims in context
 			c.Set("email", email)
+			c.Set("userId", userId)
 			c.Set("token", token)
 
 			return next(c)

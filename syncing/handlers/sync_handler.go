@@ -62,19 +62,62 @@ func (h *SyncHandler) ConsumeRabbitMQMessages(ch *amqp.Channel) {
 }
 
 func (h *SyncHandler) handleNoteUpdate(payload map[string]interface{}) {
-	noteID, _ := payload["noteId"].(string)
-	content, _ := payload["content"].(string)
+	// For numeric ID, first assert to float64, then convert to uint
+	noteIDFloat, ok := payload["noteid"].(float64)
+	if !ok {
+		log.Printf("Invalid note ID for note update: %v", payload)
+		return
+	}
+	noteID := uint(noteIDFloat)
+
+	// String assertions
+	hash, ok := payload["h"].(string)
+	if !ok {
+		log.Printf("Invalid content hash \"h\" for note update: %v", payload)
+		return
+	}
+
+	headHash, ok := payload["intgrh"].(string)
+	if !ok {
+		log.Printf("Invalid heading hash \"intgrh\" for note update: %v", payload)
+		return
+	}
+
+	content, ok := payload["content"].(string)
+	if !ok {
+		log.Printf("Invalid content for note update: %v", payload)
+		return
+	}
+
+	heading, ok := payload["heading"].(string)
+	if !ok {
+		log.Printf("Invalid heading for note update: %v", payload)
+		return
+	}
+
+	// For deleted flag, first assert to float64, then convert to int
+	deletedFloat, ok := payload["deleted"].(float64)
+	if !ok {
+		log.Printf("Invalid deleted for note update: %v", payload)
+		return
+	}
+	deleted := int(deletedFloat)
 
 	log.Printf("Received RabbitMQ for note update for %s\n", noteID)
 
 	var note models.Notes
-	if err := h.DB.First(&note, "id = ?", noteID).Error; err != nil {
+	if err := h.DB.First(&note, "noteid = ?", noteID).Error; err != nil {
 		log.Printf("Note not found: %v", err)
 		return
 	}
 
 	note.Content = content
-	note.UpdateTime = note.UpdateTime
+	note.UpdateTime = time.Now()
+	note.H = hash
+	note.Heading = heading
+	note.Intgrh = headHash
+	note.Deleted = deleted
+
 	if err := h.DB.Save(&note).Error; err != nil {
 		log.Printf("Failed to update note: %v", err)
 	} else {

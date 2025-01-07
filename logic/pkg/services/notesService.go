@@ -105,3 +105,67 @@ func (s *Storage) GetNoteByID(ctx context.Context, userID uint, noteID uint) (mo
 
 	return note, nil
 }
+
+// CreateNote creates a new note for the given user in the storage layer.
+// It stores the note in the database and caches it for 24 hours.
+//
+// Parameters:
+//   - ctx: context.Context for request cancellation and timeouts
+//   - userId: uint representing the ID of the user who owns the note
+//
+// Returns:
+//   - models.Notes: the newly created note
+//   - error: nil if successful, otherwise contains the error that occurred
+//
+// The cache key is formatted as "user:{userId}:note:{noteId}". If caching fails,
+// the error is logged but the function will still return successfully.
+func (s *Storage) CreateNote(ctx context.Context, userId uint) (models.Notes, error) {
+	note := models.Notes{
+		UserID: userId,
+	}
+
+	// Save the note to the database
+	db := s.DB.Create(&note)
+	if db.Error != nil {
+		return note, db.Error
+	}
+
+	// Cache the result for next time
+	key := fmt.Sprintf("user:%d:note:%d", note.UserID, note.NoteID)
+	bytes, err := json.Marshal(note)
+	if err == nil {
+		jsonData := string(bytes)
+		err = s.Ch.Set(ctx, key, jsonData, 24*time.Hour)
+		if err != nil {
+			log.Printf("Failed to cache note: %v", err)
+		}
+	} else {
+		log.Printf("Failed to marshal note: %v", err)
+	}
+
+	return note, nil
+}
+
+func (s *Storage) UpdateNote(ctx context.Context, note models.Notes) error {
+	// Save the note to the database through rabbitmq
+	err := s.R.DispatchNoteUpdate(note)
+	if err != nil {
+		log.Printf("Failed to dispatch note update: %v", err)
+		return err
+	}
+
+	// Cache the changed note
+	key := fmt.Sprintf("user:%d:note:%d", note.UserID, note.NoteID)
+	bytes, err := json.Marshal(note)
+	if err == nil {
+		jsonData := string(bytes)
+		err = s.Ch.Set(ctx, key, jsonData, 24*time.Hour)
+		if err != nil {
+			log.Printf("Failed to cache note: %v", err)
+		}
+	} else {
+		log.Printf("Failed to marshal note: %v", err)
+	}
+
+	return nil
+}

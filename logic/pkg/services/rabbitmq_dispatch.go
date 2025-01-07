@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"pdm-logic-server/pkg/config"
+	"pdm-logic-server/pkg/models"
 
 	"github.com/streadway/amqp"
 )
@@ -55,18 +56,24 @@ func (c *RabbitMQCtx) DispatchRabbitMQMessage(taskType string, payload map[strin
 }
 
 // DispatchNoteUpdate sends a "note update" task to RabbitMQ
-func (c *RabbitMQCtx) DispatchNoteUpdate(noteID string, content string) {
+func (c *RabbitMQCtx) DispatchNoteUpdate(note models.Notes) error {
 	payload := map[string]interface{}{
-		"noteId":  noteID,
-		"content": content,
+		"noteid":  note.NoteID,
+		"content": note.Content,
+		"heading": note.Heading,
+		"h":       note.H,
+		"intgrh":  note.Intgrh,
+		"deleted": note.Deleted,
 	}
 
 	if err := c.DispatchRabbitMQMessage("note_update", payload); err != nil {
 		log.Printf("Failed to dispatch note update: %v", err)
+		return err
 	}
+	return nil
 }
 
-// DispatchAddSession sends an "add session" task to RabbitMQ
+// DispatchAddRefresh sends an "add session" task to RabbitMQ
 func (c *RabbitMQCtx) DispatchAddRefresh(userID, refreshKey string) {
 	payload := map[string]interface{}{
 		"userId":     userID,
