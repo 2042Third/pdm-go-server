@@ -36,7 +36,7 @@ func (h *NotesHandler) GetNotes(c echo.Context) error {
 	return c.JSON(http.StatusOK, notes)
 }
 
-func (h *NotesHandler) getUserId(ctx context.Context, email string) (uint, error) {
+func (h *NotesHandler) getUserId(ctx context.Context, email string) (uint64, error) {
 	userIdStr, err := h.storage.Ch.HGet(ctx, "userEmail:userId", email)
 	if err != nil {
 		return 0, errors.NewAppError(http.StatusInternalServerError, "Failed to get user ID", err)
@@ -47,13 +47,13 @@ func (h *NotesHandler) getUserId(ctx context.Context, email string) (uint, error
 		return 0, errors.NewAppError(http.StatusInternalServerError, "Invalid user ID format", err)
 	}
 
-	return uint(userId), nil
+	return uint64(userId), nil
 }
 
 func (h *NotesHandler) CreateNote(c echo.Context) error {
 	ctx := context.Background()
 
-	userId := uint(c.Get("userId").(float64))
+	userId := uint64(c.Get("userId").(float64))
 	note, err := h.storage.CreateNote(ctx, userId, h.config.Redis.NotesCacheTTLMinutes)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{

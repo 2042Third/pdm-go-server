@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func (s *Storage) GetNotes(ctx context.Context, userID uint, cacheTTL int) ([]models.Notes, error) {
+func (s *Storage) GetNotes(ctx context.Context, userID uint64, cacheTTL int) ([]models.Notes, error) {
 	var notes []models.Notes
 
 	keysPattern := fmt.Sprintf("user:%d:note:*", userID)
@@ -119,7 +119,7 @@ func (s *Storage) GetNoteByID(ctx context.Context, userID uint, noteID uint, cac
 //
 // The cache key is formatted as "user:{userId}:note:{noteId}". If caching fails,
 // the error is logged but the function will still return successfully.
-func (s *Storage) CreateNote(ctx context.Context, userId uint, cacheTTL int) (models.Notes, error) {
+func (s *Storage) CreateNote(ctx context.Context, userId uint64, cacheTTL int) (models.Notes, error) {
 	note := models.Notes{
 		UserID: userId,
 	}
