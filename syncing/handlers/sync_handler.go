@@ -102,7 +102,7 @@ func (h *SyncHandler) handleNoteUpdate(payload map[string]interface{}) {
 	}
 	deleted := int(deletedFloat)
 
-	log.Printf("Received RabbitMQ for note update for %s\n", noteID)
+	log.Printf("Received RabbitMQ for note update for %v\n", noteID)
 
 	var note models.Notes
 	if err := h.DB.First(&note, "noteid = ?", noteID).Error; err != nil {
