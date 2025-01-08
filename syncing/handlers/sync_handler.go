@@ -111,12 +111,19 @@ func (h *SyncHandler) handleNoteUpdate(payload map[string]interface{}) {
 		return
 	}
 
+	updateTime, ok := payload["update_time"].(float64)
+	if !ok {
+		log.Printf("Invalid update time for note update: %v", payload)
+		return
+	}
+
 	note.Content = content
 	note.UpdateTime = time.Now()
 	note.H = hash
 	note.Heading = heading
 	note.Intgrh = headHash
 	note.Deleted = deleted
+	note.UpdateTime = time.Unix(int64(updateTime), 0)
 
 	if err := h.DB.Save(&note).Error; err != nil {
 		log.Printf("Failed to update note: %v", err)

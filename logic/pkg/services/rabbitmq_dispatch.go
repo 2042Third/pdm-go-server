@@ -58,12 +58,13 @@ func (c *RabbitMQCtx) DispatchRabbitMQMessage(taskType string, payload map[strin
 // DispatchNoteUpdate sends a "note update" task to RabbitMQ
 func (c *RabbitMQCtx) DispatchNoteUpdate(note models.Notes) error {
 	payload := map[string]interface{}{
-		"noteid":  note.NoteID,
-		"content": note.Content,
-		"heading": note.Heading,
-		"h":       note.H,
-		"intgrh":  note.Intgrh,
-		"deleted": note.Deleted,
+		"noteid":      note.NoteID,
+		"content":     note.Content,
+		"heading":     note.Heading,
+		"h":           note.H,
+		"intgrh":      note.Intgrh,
+		"deleted":     note.Deleted,
+		"update_time": note.UpdateTime.Unix(),
 	}
 
 	if err := c.DispatchRabbitMQMessage("note_update", payload); err != nil {

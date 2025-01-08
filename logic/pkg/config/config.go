@@ -46,10 +46,12 @@ func (c Config) GetEnv(env string) interface{} {
 }
 
 type RedisConfig struct {
-	Address  string        // Redis server address
-	Password string        // Redis password
-	DB       int           // Redis database number
-	Timeout  time.Duration // Operation timeout
+	Address              string        // Redis server address
+	Password             string        // Redis password
+	DB                   int           // Redis database number
+	Timeout              time.Duration // Operation timeout
+	NotesCacheTTLMinutes int           // Notes cache TTL in minutes
+	InfoCacheTTLMinutes  int           // Info cache TTL in minutes
 }
 
 type StaticContentConfig struct {
@@ -130,9 +132,11 @@ func LoadConfig() (*Config, error) {
 			TurnstileSecretKey: getEnvOrDefault("CF_TURNSTILE_SECRET_KEY", ""),
 		},
 		Redis: RedisConfig{
-			Address:  os.Getenv("REDIS_URL"),
-			Password: os.Getenv("REDIS_PASSWORD"),
-			DB:       getIntOrDefault("REDIS_DB", 0),
+			Address:              os.Getenv("REDIS_URL"),
+			Password:             os.Getenv("REDIS_PASSWORD"),
+			DB:                   getIntOrDefault("REDIS_DB", 0),
+			NotesCacheTTLMinutes: getIntOrDefault("REDIS_NOTES_CACHE_TTL_MINUTES", 1),
+			InfoCacheTTLMinutes:  getIntOrDefault("REDIS_INFO_CACHE_TTL_MINUTES", 1),
 		},
 	}, nil
 }

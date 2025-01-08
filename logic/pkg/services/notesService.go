@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func (s *Storage) GetNotes(ctx context.Context, userID uint) ([]models.Notes, error) {
+func (s *Storage) GetNotes(ctx context.Context, userID uint, cacheTTL int) ([]models.Notes, error) {
 	var notes []models.Notes
 
 	keysPattern := fmt.Sprintf("user:%d:note:*", userID)
@@ -61,7 +61,7 @@ func (s *Storage) GetNotes(ctx context.Context, userID uint) ([]models.Notes, er
 		bytes, err := json.Marshal(note)
 		if err == nil {
 			jsonData := string(bytes)
-			err = s.Ch.Set(ctx, key, jsonData, 24*time.Hour)
+			err = s.Ch.Set(ctx, key, jsonData, time.Duration(cacheTTL)*time.Minute)
 			if err != nil {
 				log.Printf("Failed to cache notes: %v", err)
 			}
@@ -72,7 +72,7 @@ func (s *Storage) GetNotes(ctx context.Context, userID uint) ([]models.Notes, er
 	return notes, nil
 }
 
-func (s *Storage) GetNoteByID(ctx context.Context, userID uint, noteID uint) (models.Notes, error) {
+func (s *Storage) GetNoteByID(ctx context.Context, userID uint, noteID uint, cacheTTL int) (models.Notes, error) {
 	var note models.Notes
 
 	key := fmt.Sprintf("user:%d:note:%d", userID, noteID)
@@ -97,7 +97,7 @@ func (s *Storage) GetNoteByID(ctx context.Context, userID uint, noteID uint) (mo
 	bytes, err := json.Marshal(note)
 	jsonData = string(bytes)
 	if err == nil {
-		err = s.Ch.Set(ctx, key, jsonData, 24*time.Hour)
+		err = s.Ch.Set(ctx, key, jsonData, time.Duration(cacheTTL)*time.Minute)
 		if err != nil {
 			log.Printf("Failed to cache noteInfo: %v", err)
 		}
@@ -119,7 +119,7 @@ func (s *Storage) GetNoteByID(ctx context.Context, userID uint, noteID uint) (mo
 //
 // The cache key is formatted as "user:{userId}:note:{noteId}". If caching fails,
 // the error is logged but the function will still return successfully.
-func (s *Storage) CreateNote(ctx context.Context, userId uint) (models.Notes, error) {
+func (s *Storage) CreateNote(ctx context.Context, userId uint, cacheTTL int) (models.Notes, error) {
 	note := models.Notes{
 		UserID: userId,
 	}
@@ -135,7 +135,7 @@ func (s *Storage) CreateNote(ctx context.Context, userId uint) (models.Notes, er
 	bytes, err := json.Marshal(note)
 	if err == nil {
 		jsonData := string(bytes)
-		err = s.Ch.Set(ctx, key, jsonData, 24*time.Hour)
+		err = s.Ch.Set(ctx, key, jsonData, time.Duration(cacheTTL)*time.Minute)
 		if err != nil {
 			log.Printf("Failed to cache note: %v", err)
 		}
@@ -146,7 +146,11 @@ func (s *Storage) CreateNote(ctx context.Context, userId uint) (models.Notes, er
 	return note, nil
 }
 
-func (s *Storage) UpdateNote(ctx context.Context, note models.Notes) error {
+func (s *Storage) UpdateNote(ctx context.Context, note models.Notes, cacheTTL int) error {
+	note.UpdateTime = time.Now()
+
+	log.Printf("[DEBUG, func (s *Storage) UpdateNote] note.Time: %v", note.Time)
+
 	// Save the note to the database through rabbitmq
 	err := s.R.DispatchNoteUpdate(note)
 	if err != nil {
@@ -159,7 +163,7 @@ func (s *Storage) UpdateNote(ctx context.Context, note models.Notes) error {
 	bytes, err := json.Marshal(note)
 	if err == nil {
 		jsonData := string(bytes)
-		err = s.Ch.Set(ctx, key, jsonData, 24*time.Hour)
+		err = s.Ch.Set(ctx, key, jsonData, time.Duration(cacheTTL)*time.Minute)
 		if err != nil {
 			log.Printf("Failed to cache note: %v", err)
 		}

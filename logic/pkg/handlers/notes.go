@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/labstack/echo/v4"
+	"log"
 	"net/http"
 	"pdm-logic-server/pkg/errors"
 	"pdm-logic-server/pkg/models"
@@ -27,7 +28,7 @@ func (h *NotesHandler) GetNotes(c echo.Context) error {
 		return err
 	}
 
-	notes, err := h.storage.GetNotes(ctx, userId)
+	notes, err := h.storage.GetNotes(ctx, userId, h.config.Redis.NotesCacheTTLMinutes)
 	if err != nil {
 		return errors.NewAppError(http.StatusInternalServerError, "Failed to fetch notes", err)
 	}
@@ -53,7 +54,7 @@ func (h *NotesHandler) CreateNote(c echo.Context) error {
 	ctx := context.Background()
 
 	userId := uint(c.Get("userId").(float64))
-	note, err := h.storage.CreateNote(ctx, userId)
+	note, err := h.storage.CreateNote(ctx, userId, h.config.Redis.NotesCacheTTLMinutes)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
 			"message": "Failed to create note",
@@ -76,9 +77,10 @@ func (h *NotesHandler) UpdateNotes(c echo.Context) error {
 		return errors.NewAppError(http.StatusBadRequest, "Invalid request data", err)
 	}
 
+	log.Printf("[DEBUG, func (h *NotesHandler) UpdateNotes] req.Time: %v", req.Time)
 	ctx := context.Background()
 
-	err := h.storage.UpdateNote(ctx, req)
+	err := h.storage.UpdateNote(ctx, req, h.config.Redis.NotesCacheTTLMinutes)
 	if err != nil {
 		return errors.NewAppError(http.StatusInternalServerError, "Failed to update note", err)
 	}
