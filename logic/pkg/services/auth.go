@@ -24,7 +24,7 @@ func NewAuthService(privateKey ed25519.PrivateKey, publicKey ed25519.PublicKey) 
 }
 
 // GenerateToken generates a new JWT token with provided claims using Ed25519.
-func (a *AuthService) GenerateToken(email string, userId uint) (string, int64, error) {
+func (a *AuthService) GenerateToken(email string, userId uint64) (string, int64, error) {
 	token := jwt.New(jwt.SigningMethodEdDSA) // Use Ed25519 for signing
 	claims := token.Claims.(jwt.MapClaims)
 	expiration := time.Now().Add(24 * time.Hour).Unix() // Adjust token validity duration as needed

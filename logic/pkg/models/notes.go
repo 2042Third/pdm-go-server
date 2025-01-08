@@ -5,7 +5,7 @@ import (
 )
 
 type Notes struct {
-	NoteID     uint      `gorm:"primaryKey;column:noteid" json:"noteid"`
+	NoteID     uint64    `gorm:"primaryKey;column:noteid" json:"noteid"`
 	UserID     uint      `gorm:"column:userid;not null;foreignKey:UserID;references:ID" json:"userid"`
 	Content    string    `gorm:"column:content" json:"content"`
 	H          string    `gorm:"column:h" json:"h"`

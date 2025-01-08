@@ -87,8 +87,8 @@ func (c *RabbitMQCtx) DispatchAddRefresh(userID, refreshKey string) {
 }
 
 // DispatchAddSession sends an "add session" task to RabbitMQ
-func (c *RabbitMQCtx) DispatchAddSession(userID, sessionKey string, expiration int64) {
-	log.Printf("DispatchAddSession for user %s at %f\n", userID, float64(expiration))
+func (c *RabbitMQCtx) DispatchAddSession(userID uint64, sessionKey string, expiration int64) {
+	log.Printf("DispatchAddSession for user %v at %f\n", userID, float64(expiration))
 	payload := map[string]interface{}{
 		"userId":     userID,
 		"sessionKey": sessionKey,
@@ -100,7 +100,7 @@ func (c *RabbitMQCtx) DispatchAddSession(userID, sessionKey string, expiration i
 	}
 }
 
-func (c *RabbitMQCtx) DispatchDeleteSession(userID, sessionKey string) {
+func (c *RabbitMQCtx) DispatchDeleteSession(userID uint64, sessionKey string) {
 	payload := map[string]interface{}{
 		"userId":     userID,
 		"sessionKey": sessionKey,

@@ -84,7 +84,7 @@ func ValidateVerificationCode(S *Storage, userEmail, code string) bool {
 	return true
 }
 
-func ValidateUser(S *Storage, ctx context.Context, email, password string) (uint, bool) {
+func ValidateUser(S *Storage, ctx context.Context, email, password string) (uint64, bool) {
 	var user models.User
 	err := S.DB.Where("email = ?", email).First(&user).Error
 	if err != nil {
@@ -118,7 +118,7 @@ func ValidateUser(S *Storage, ctx context.Context, email, password string) (uint
 	return user.ID, password == user.Spw
 }
 
-func GetUserInfo(S *Storage, ctx context.Context, userID uint) (*models.UserInfo, error) {
+func GetUserInfo(S *Storage, ctx context.Context, userID uint64) (*models.UserInfo, error) {
 	var userInfo models.UserInfo
 
 	// Try to get from cache first
@@ -156,7 +156,7 @@ func GetUserInfo(S *Storage, ctx context.Context, userID uint) (*models.UserInfo
 	return &userInfo, nil
 }
 
-func GetUserByID(S *Storage, userID uint) (models.User, error) {
+func GetUserByID(S *Storage, userID uint64) (models.User, error) {
 	var usr models.User
 	err := S.DB.First(&usr, userID).Error
 	return usr, err

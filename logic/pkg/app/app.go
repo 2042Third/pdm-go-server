@@ -8,12 +8,15 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
+	"log"
 	"net/http"
 	"pdm-logic-server/pkg/cache"
 	"pdm-logic-server/pkg/config"
 	"pdm-logic-server/pkg/db"
 	"pdm-logic-server/pkg/health"
 	"pdm-logic-server/pkg/metrics"
+	"pdm-logic-server/pkg/models"
 	"pdm-logic-server/pkg/services"
 	"sync"
 	"time"
@@ -40,6 +43,12 @@ func NewApp(cfg *config.Config, logger *logrus.Logger) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Migrate database (only use it when needed)
+	//if err := migrateDB(db.DB); err != nil {
+	//	log.Fatalf("Failed to migrate database schema: %v", err)
+	//	return nil, err
+	//}
 
 	cache, err := initCache(cfg, logger)
 	if err != nil {
@@ -256,6 +265,23 @@ func (a *App) validateEnvironment() error {
 func initDB(cfg *config.Config, logger *logrus.Logger) (*db.Database, error) {
 	// Initialize database
 	return db.NewDatabase(), nil
+}
+
+func migrateDB(db *gorm.DB) error {
+	// Run migrations
+	if err := db.AutoMigrate(&models.SessionKey{}); err != nil {
+		log.Fatalf("Failed to migrate database schema: %v", err)
+	}
+	log.Println("Migration for SessionKey completed!")
+
+	if err := db.AutoMigrate(&models.RefreshKey{}); err != nil {
+		log.Fatalf("Failed to migrate database schema: %v", err)
+	}
+	log.Println("Migration for RefreshKey completed!")
+
+	log.Println("Database migration completed!")
+
+	return nil
 }
 
 func initCache(cfg *config.Config, logger *logrus.Logger) (*cache.RedisCache, error) {

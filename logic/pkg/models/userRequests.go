@@ -15,7 +15,7 @@ type SignupRequest struct {
 }
 
 type SignupInternalResponse struct {
-	UserId           uint   `json:"userId"`
+	UserId           uint64 `json:"userId"`
 	VerificationCode string `json:"verificationCode"`
 }
 

@@ -261,7 +261,7 @@ func (h *UserHandler) Login(c echo.Context) error {
 		return errors.NewAppError(http.StatusInternalServerError, "Failed to generate token", err)
 	}
 
-	h.storage.R.DispatchAddSession(strconv.Itoa(int(userId)), token, expiration)
+	h.storage.R.DispatchAddSession(userId, token, expiration)
 	if err := h.cacheUserSession(ctx, req.Email, userId, token, time.Unix(expiration, 0)); err != nil {
 		return err
 	}
@@ -273,7 +273,7 @@ func (h *UserHandler) Login(c echo.Context) error {
 	})
 }
 
-func (h *UserHandler) cacheUserSession(ctx context.Context, email string, userId uint, token string, expiration time.Time) error {
+func (h *UserHandler) cacheUserSession(ctx context.Context, email string, userId uint64, token string, expiration time.Time) error {
 	// Cache user ID mapping
 	if err := h.storage.Ch.HSet(ctx, "userEmail:userId", email, strconv.FormatUint(uint64(userId), 10)); err != nil {
 		return errors.NewAppError(http.StatusInternalServerError, "Failed to cache user mapping", err)
@@ -360,7 +360,7 @@ func (h *UserHandler) GetUserInfo(c echo.Context) error {
 	}
 
 	intUserId, err := strconv.Atoi(userId)
-	userInfo, err := services.GetUserInfo(h.storage, ctx, uint(intUserId))
+	userInfo, err := services.GetUserInfo(h.storage, ctx, uint64(intUserId))
 
 	return c.JSON(http.StatusOK, userInfo)
 }

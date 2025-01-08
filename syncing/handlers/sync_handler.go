@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strconv"
 	"syncing/models"
 	"time"
 
@@ -68,7 +67,7 @@ func (h *SyncHandler) handleNoteUpdate(payload map[string]interface{}) {
 		log.Printf("Invalid note ID for note update: %v", payload)
 		return
 	}
-	noteID := uint(noteIDFloat)
+	noteID := uint64(noteIDFloat)
 
 	// String assertions
 	hash, ok := payload["h"].(string)
@@ -133,20 +132,12 @@ func (h *SyncHandler) handleNoteUpdate(payload map[string]interface{}) {
 }
 
 func (h *SyncHandler) handleAddRefreshKey(payload map[string]interface{}) {
-	userIDStr, _ := payload["userId"].(string)
+	userID, _ := payload["userId"].(float64)
 	//sessionKey, _ := payload["sessionKey"].(string)
 	refreshKey, _ := payload["refreshKey"].(string)
 
-	log.Printf("Received RabbitMQ for refreshKey for %s\n", userIDStr)
-
-	userID, err := strconv.ParseUint(userIDStr, 10, 32)
-	if err != nil {
-		log.Printf("Invalid user ID: %v", err)
-		return
-	}
-
 	session := models.RefreshKey{
-		UserID:     uint(userID),
+		UserID:     uint64(userID),
 		RefreshKey: refreshKey,
 	}
 
@@ -158,22 +149,14 @@ func (h *SyncHandler) handleAddRefreshKey(payload map[string]interface{}) {
 }
 
 func (h *SyncHandler) handleAddSessionKey(payload map[string]interface{}) {
-	userIDStr, _ := payload["userId"].(string)
+	userID, _ := payload["userId"].(float64)
 	sessionKey, _ := payload["sessionKey"].(string)
 	expiration, _ := payload["expiration"].(float64)
-
-	log.Printf("Received RabbitMQ for sessionKey for %s\n", userIDStr)
-
-	userID, err := strconv.ParseUint(userIDStr, 10, 32)
-	if err != nil {
-		log.Printf("Invalid user ID: %v", err)
-		return
-	}
 
 	parsedExp := time.Unix(int64(expiration), 0)
 	fmt.Printf("Parsed expiration: %v from %d\n", parsedExp, expiration)
 	session := models.SessionKey{
-		UserID:         uint(userID),
+		UserID:         uint64(userID),
 		SessionKey:     sessionKey,
 		ExpirationTime: parsedExp,
 	}
@@ -186,16 +169,8 @@ func (h *SyncHandler) handleAddSessionKey(payload map[string]interface{}) {
 }
 
 func (h *SyncHandler) handleInvalidateSessionKey(payload map[string]interface{}) {
-	userIDStr, _ := payload["userId"].(string)
+	userID, _ := payload["userId"].(uint64)
 	sessionKey, _ := payload["sessionKey"].(string)
-
-	log.Printf("Received RabbitMQ for sessionKey invalidation for %s with %s\n", userIDStr, sessionKey)
-
-	userID, err := strconv.ParseUint(userIDStr, 10, 32)
-	if err != nil {
-		log.Printf("Invalid user ID: %v", err)
-		return
-	}
 
 	if sessionKey == "" {
 		log.Printf("No session key provided for invalidation")

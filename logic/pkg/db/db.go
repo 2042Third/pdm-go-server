@@ -38,6 +38,10 @@ func NewDatabase() *Database {
 	//if err := db.AutoMigrate(&models.SessionKey{}); err != nil {
 	//	log.Fatalf("Failed to migrate database schema: %v", err)
 	//}
+
+	//if err := db.AutoMigrate(&models.RefreshKey{}); err != nil {
+	//	log.Fatalf("Failed to migrate database schema: %v", err)
+	//}
 	//
 	//log.Println("Database migration completed!")
 

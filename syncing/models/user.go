@@ -7,7 +7,7 @@ import (
 
 // User represents the userinfo table in the database
 type User struct {
-	ID          uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+	ID          uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name        string `gorm:"column:name" json:"name"`
 	Spw         string `gorm:"column:spw" json:"spw"`
 	Creation    string `gorm:"column:creation" json:"creation"`
