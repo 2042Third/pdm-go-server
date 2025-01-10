@@ -14,7 +14,7 @@ import (
 )
 
 type CustomRenderer struct {
-	templates *template.Template
+	template *template.Template
 }
 
 type TemplateData struct {
@@ -51,7 +51,7 @@ func getSystemMetrics() (string, error) {
 }
 
 func getDockerStatus() (string, error) {
-	cmd := exec.Command("docker", "ps")
+	cmd := exec.Command("podman", "ps")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", err
@@ -107,7 +107,7 @@ func (r *CustomRenderer) Render(w io.Writer, name string, data interface{}, c ec
 		Status: data.(StatusData),
 	}
 
-	return r.templates.ExecuteTemplate(w, name, templateData)
+	return r.template.ExecuteTemplate(w, name, templateData)
 }
 
 func (s *StatusHandler) SetupRenderer(e *echo.Echo, wd string) {
@@ -115,7 +115,7 @@ func (s *StatusHandler) SetupRenderer(e *echo.Echo, wd string) {
 	templates := template.Must(template.ParseFiles(templatePath))
 
 	renderer := &CustomRenderer{
-		templates: templates,
+		template: templates,
 	}
 	e.Renderer = renderer
 }
