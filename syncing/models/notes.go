@@ -5,8 +5,8 @@ import (
 )
 
 type Notes struct {
-	NoteID     uint64    `gorm:"primaryKey;column:noteid" json:"noteid"`
-	UserID     uint64    `gorm:"column:userid;not null;foreignKey:UserID;references:ID" json:"userid"`
+	NoteID     string    `gorm:"primaryKey;type:uuid;default:uuid_generate_v4();column:noteid" json:"noteid"`
+	UserID     string    `gorm:"column:userid;type:uuid;not null" json:"userid"`
 	Content    string    `gorm:"column:content" json:"content"`
 	H          string    `gorm:"column:h" json:"h"`
 	Intgrh     string    `gorm:"column:intgrh" json:"intgrh"`

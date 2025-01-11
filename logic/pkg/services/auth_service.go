@@ -40,7 +40,7 @@ func RegisterUser(S *Storage, ctx context.Context, name, email, password string)
 	err := S.DB.Where("email = ?", email).First(&user).Error
 	if err == nil {
 		return models.SignupInternalResponse{
-			UserId: 0,
+			UserId: "",
 		}, fmt.Errorf("user with email %s already exists", email)
 	}
 
@@ -57,7 +57,7 @@ func RegisterUser(S *Storage, ctx context.Context, name, email, password string)
 
 	err = S.DB.Create(&user).Error
 	if err != nil {
-		return models.SignupInternalResponse{UserId: 0}, err
+		return models.SignupInternalResponse{UserId: ""}, err
 	}
 
 	return models.SignupInternalResponse{
@@ -84,11 +84,11 @@ func ValidateVerificationCode(S *Storage, userEmail, code string) bool {
 	return true
 }
 
-func ValidateUser(S *Storage, ctx context.Context, email, password string) (uint64, bool) {
+func ValidateUser(S *Storage, ctx context.Context, email, password string) (string, bool) {
 	var user models.User
 	err := S.DB.Where("email = ?", email).First(&user).Error
 	if err != nil {
-		return 1, false
+		return "", false
 	}
 
 	// If validation successful, cache the UserInfo
@@ -107,7 +107,7 @@ func ValidateUser(S *Storage, ctx context.Context, email, password string) (uint
 		if err != nil {
 			log.Printf("Failed to marshal userInfo: %v", err)
 		} else {
-			key := fmt.Sprintf("user:%d:userinfo", user.ID)
+			key := fmt.Sprintf("user:%s:userinfo", user.ID)
 			err = S.Ch.Set(ctx, key, string(jsonData), 24*time.Hour)
 			if err != nil {
 				log.Printf("Failed to cache userInfo: %v", err)
@@ -118,11 +118,11 @@ func ValidateUser(S *Storage, ctx context.Context, email, password string) (uint
 	return user.ID, password == user.Spw
 }
 
-func GetUserInfo(S *Storage, ctx context.Context, userID uint64) (*models.UserInfo, error) {
+func GetUserInfo(S *Storage, ctx context.Context, userID string) (*models.UserInfo, error) {
 	var userInfo models.UserInfo
 
 	// Try to get from cache first
-	key := fmt.Sprintf("user:%d:userinfo", userID)
+	key := fmt.Sprintf("user:%s:userinfo", userID)
 	jsonData, err := S.Ch.Get(ctx, key)
 	if err == nil {
 		// Cache hit - need to deserialize
@@ -156,7 +156,7 @@ func GetUserInfo(S *Storage, ctx context.Context, userID uint64) (*models.UserIn
 	return &userInfo, nil
 }
 
-func GetUserByID(S *Storage, userID uint64) (models.User, error) {
+func GetUserByID(S *Storage, userID string) (models.User, error) {
 	var usr models.User
 	err := S.DB.First(&usr, userID).Error
 	return usr, err

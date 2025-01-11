@@ -74,6 +74,20 @@ func (c *RabbitMQCtx) DispatchNoteUpdate(note models.Notes) error {
 	return nil
 }
 
+// DispatchNoteUpdate sends a "note update" task to RabbitMQ
+func (c *RabbitMQCtx) DispatchNoteDelete(req models.DeleteNoteRequest) error {
+	payload := map[string]interface{}{
+		"noteid":            req.NoteID,
+		"deletePermanently": req.DeletePermanently,
+	}
+
+	if err := c.DispatchRabbitMQMessage("note_delete", payload); err != nil {
+		log.Printf("Failed to dispatch note update: %v", err)
+		return err
+	}
+	return nil
+}
+
 // DispatchAddRefresh sends an "add session" task to RabbitMQ
 func (c *RabbitMQCtx) DispatchAddRefresh(userID, refreshKey string) {
 	payload := map[string]interface{}{
@@ -87,7 +101,7 @@ func (c *RabbitMQCtx) DispatchAddRefresh(userID, refreshKey string) {
 }
 
 // DispatchAddSession sends an "add session" task to RabbitMQ
-func (c *RabbitMQCtx) DispatchAddSession(userID uint64, sessionKey string, expiration int64) {
+func (c *RabbitMQCtx) DispatchAddSession(userID string, sessionKey string, expiration int64) {
 	log.Printf("DispatchAddSession for user %v at %f\n", userID, float64(expiration))
 	payload := map[string]interface{}{
 		"userId":     userID,
@@ -100,7 +114,7 @@ func (c *RabbitMQCtx) DispatchAddSession(userID uint64, sessionKey string, expir
 	}
 }
 
-func (c *RabbitMQCtx) DispatchDeleteSession(userID uint64, sessionKey string) {
+func (c *RabbitMQCtx) DispatchDeleteSession(userID string, sessionKey string) {
 	payload := map[string]interface{}{
 		"userId":     userID,
 		"sessionKey": sessionKey,

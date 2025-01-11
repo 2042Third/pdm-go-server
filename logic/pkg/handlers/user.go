@@ -14,7 +14,6 @@ import (
 	"pdm-logic-server/pkg/errors"
 	"pdm-logic-server/pkg/models"
 	"pdm-logic-server/pkg/services"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -273,14 +272,14 @@ func (h *UserHandler) Login(c echo.Context) error {
 	})
 }
 
-func (h *UserHandler) cacheUserSession(ctx context.Context, email string, userId uint64, token string, expiration time.Time) error {
+func (h *UserHandler) cacheUserSession(ctx context.Context, email string, userId string, token string, expiration time.Time) error {
 	// Cache user ID mapping
-	if err := h.storage.Ch.HSet(ctx, "userEmail:userId", email, strconv.FormatUint(uint64(userId), 10)); err != nil {
+	if err := h.storage.Ch.HSet(ctx, "userEmail:userId", email, userId); err != nil {
 		return errors.NewAppError(http.StatusInternalServerError, "Failed to cache user mapping", err)
 	}
 
 	// Cache session token
-	key := fmt.Sprintf("user:%d:sessionKey", userId)
+	key := fmt.Sprintf("user:%s:sessionKey", userId)
 	ttl := time.Until(expiration)
 	if err := h.storage.Ch.Set(ctx, key, token, ttl); err != nil {
 		return errors.NewAppError(http.StatusInternalServerError, "Failed to cache session", err)
@@ -359,8 +358,7 @@ func (h *UserHandler) GetUserInfo(c echo.Context) error {
 		})
 	}
 
-	intUserId, err := strconv.Atoi(userId)
-	userInfo, err := services.GetUserInfo(h.storage, ctx, uint64(intUserId))
+	userInfo, err := services.GetUserInfo(h.storage, ctx, userId)
 
 	return c.JSON(http.StatusOK, userInfo)
 }

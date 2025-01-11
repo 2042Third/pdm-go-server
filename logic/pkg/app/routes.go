@@ -54,4 +54,5 @@ func (a *App) setupRoutes() {
 	api.GET("/notes", notesHandler.GetNotes)
 	api.POST("/notes", notesHandler.CreateNote)
 	api.PUT("/notes", notesHandler.UpdateNotes)
+	api.DELETE("/notes", notesHandler.DeleteNotes)
 }

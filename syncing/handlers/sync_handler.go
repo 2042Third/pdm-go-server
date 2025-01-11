@@ -48,6 +48,8 @@ func (h *SyncHandler) ConsumeRabbitMQMessages(ch *amqp.Channel) {
 		switch taskType {
 		case "note_update":
 			h.handleNoteUpdate(payload)
+		case "note_delete":
+			h.handleNoteDelete(payload)
 		case "add_session":
 			h.handleAddSessionKey(payload)
 		case "add_session_refresh":
@@ -62,12 +64,11 @@ func (h *SyncHandler) ConsumeRabbitMQMessages(ch *amqp.Channel) {
 
 func (h *SyncHandler) handleNoteUpdate(payload map[string]interface{}) {
 	// For numeric ID, first assert to float64, then convert to uint
-	noteIDFloat, ok := payload["noteid"].(float64)
+	noteID, ok := payload["noteid"].(string)
 	if !ok {
 		log.Printf("Invalid note ID for note update: %v", payload)
 		return
 	}
-	noteID := uint64(noteIDFloat)
 
 	// String assertions
 	hash, ok := payload["h"].(string)
@@ -131,32 +132,60 @@ func (h *SyncHandler) handleNoteUpdate(payload map[string]interface{}) {
 	}
 }
 
+func (h *SyncHandler) handleNoteDelete(payload map[string]interface{}) {
+	log.Printf("Started delete note.")
+	noteID, ok := payload["noteid"].(string)
+	if !ok {
+		log.Printf("Invalid note ID for note delete: %v", payload)
+		return
+	}
+	log.Printf("Tobe deleted note id: %v", noteID)
+
+	deletePermanently, _ := payload["deletePermanently"].(bool)
+
+	if deletePermanently {
+		err := h.DB.Where("noteid = ? ", noteID).Delete(&models.Notes{}).Error
+		if err != nil {
+			log.Printf("Failed to delete note permanently")
+		}
+	} else {
+		err := h.DB.Model(&models.Notes{}).
+			Where("noteid = ?", noteID).
+			Update("deleted", 0)
+		if err != nil {
+			// Handle the error
+			fmt.Println("Delete note delete = 0 Error:", err)
+		}
+	}
+
+}
+
 func (h *SyncHandler) handleAddRefreshKey(payload map[string]interface{}) {
-	userID, _ := payload["userId"].(float64)
+	userID, _ := payload["userId"].(string)
 	//sessionKey, _ := payload["sessionKey"].(string)
 	refreshKey, _ := payload["refreshKey"].(string)
 
 	session := models.RefreshKey{
-		UserID:     uint64(userID),
+		UserID:     userID,
 		RefreshKey: refreshKey,
 	}
 
 	if err := h.DB.Create(&session).Error; err != nil {
 		log.Printf("Failed to add session: %v", err)
 	} else {
-		log.Printf("Session added successfully for user: %d", userID)
+		log.Printf("Session added successfully for user: %v", userID)
 	}
 }
 
 func (h *SyncHandler) handleAddSessionKey(payload map[string]interface{}) {
-	userID, _ := payload["userId"].(float64)
+	userID, _ := payload["userId"].(string)
 	sessionKey, _ := payload["sessionKey"].(string)
 	expiration, _ := payload["expiration"].(float64)
 
 	parsedExp := time.Unix(int64(expiration), 0)
-	fmt.Printf("Parsed expiration: %v from %d\n", parsedExp, expiration)
+	fmt.Printf("Parsed expiration: %v from %v\n", parsedExp, expiration)
 	session := models.SessionKey{
-		UserID:         uint64(userID),
+		UserID:         userID,
 		SessionKey:     sessionKey,
 		ExpirationTime: parsedExp,
 	}
@@ -169,7 +198,7 @@ func (h *SyncHandler) handleAddSessionKey(payload map[string]interface{}) {
 }
 
 func (h *SyncHandler) handleInvalidateSessionKey(payload map[string]interface{}) {
-	userID, _ := payload["userId"].(uint64)
+	userID, _ := payload["userId"].(string)
 	sessionKey, _ := payload["sessionKey"].(string)
 
 	if sessionKey == "" {
@@ -183,6 +212,6 @@ func (h *SyncHandler) handleInvalidateSessionKey(payload map[string]interface{})
 		Update("valid", "0").Error; err != nil {
 		log.Printf("Failed to invalidate session: %v", err)
 	} else {
-		log.Printf("Session invalidated successfully for user: %d", userID)
+		log.Printf("Session invalidated successfully for user: %v", userID)
 	}
 }

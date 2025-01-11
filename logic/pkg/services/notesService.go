@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-func (s *Storage) GetNotes(ctx context.Context, userID uint64, cacheTTL int) ([]models.Notes, error) {
+func (s *Storage) GetNotes(ctx context.Context, userID string, cacheTTL int) ([]models.Notes, error) {
 	var notes []models.Notes
 
-	keysPattern := fmt.Sprintf("user:%d:note:*", userID)
+	keysPattern := fmt.Sprintf("user:%s:note:*", userID)
 	keys, err := s.Ch.Keys(ctx, keysPattern)
 	if err != nil {
 		log.Printf("Failed to retrieve keys: %v", err)
@@ -57,7 +57,7 @@ func (s *Storage) GetNotes(ctx context.Context, userID uint64, cacheTTL int) ([]
 
 	// Cache the result for next time
 	for _, note := range notes {
-		key := fmt.Sprintf("user:%d:note:%d", note.UserID, note.NoteID)
+		key := fmt.Sprintf("user:%s:note:%s", note.UserID, note.NoteID)
 		bytes, err := json.Marshal(note)
 		if err == nil {
 			jsonData := string(bytes)
@@ -69,13 +69,14 @@ func (s *Storage) GetNotes(ctx context.Context, userID uint64, cacheTTL int) ([]
 			log.Printf("Failed to marshal note: %v", err)
 		}
 	}
+
 	return notes, nil
 }
 
-func (s *Storage) GetNoteByID(ctx context.Context, userID uint, noteID uint, cacheTTL int) (models.Notes, error) {
+func (s *Storage) GetNoteByID(ctx context.Context, userID string, noteID string, cacheTTL int) (models.Notes, error) {
 	var note models.Notes
 
-	key := fmt.Sprintf("user:%d:note:%d", userID, noteID)
+	key := fmt.Sprintf("user:%s:note:%s", userID, noteID)
 	jsonData, err := s.Ch.Get(ctx, key)
 	if err == nil {
 		// Cache hit - need to deserialize
@@ -119,7 +120,7 @@ func (s *Storage) GetNoteByID(ctx context.Context, userID uint, noteID uint, cac
 //
 // The cache key is formatted as "user:{userId}:note:{noteId}". If caching fails,
 // the error is logged but the function will still return successfully.
-func (s *Storage) CreateNote(ctx context.Context, userId uint64, cacheTTL int) (models.Notes, error) {
+func (s *Storage) CreateNote(ctx context.Context, userId string, cacheTTL int) (models.Notes, error) {
 	note := models.Notes{
 		UserID: userId,
 	}
@@ -131,7 +132,7 @@ func (s *Storage) CreateNote(ctx context.Context, userId uint64, cacheTTL int) (
 	}
 
 	// Cache the result for next time
-	key := fmt.Sprintf("user:%d:note:%d", note.UserID, note.NoteID)
+	key := fmt.Sprintf("user:%s:note:%s", note.UserID, note.NoteID)
 	bytes, err := json.Marshal(note)
 	if err == nil {
 		jsonData := string(bytes)
@@ -159,7 +160,7 @@ func (s *Storage) UpdateNote(ctx context.Context, note models.Notes, cacheTTL in
 	}
 
 	// Cache the changed note
-	key := fmt.Sprintf("user:%d:note:%d", note.UserID, note.NoteID)
+	key := fmt.Sprintf("user:%s:note:%s", note.UserID, note.NoteID)
 	bytes, err := json.Marshal(note)
 	if err == nil {
 		jsonData := string(bytes)
@@ -169,6 +170,25 @@ func (s *Storage) UpdateNote(ctx context.Context, note models.Notes, cacheTTL in
 		}
 	} else {
 		log.Printf("Failed to marshal note: %v", err)
+	}
+
+	return nil
+}
+
+func (s *Storage) DeleteNote(ctx context.Context, userId string, req models.DeleteNoteRequest) error {
+
+	// Save the note to the database through rabbitmq
+	err := s.R.DispatchNoteDelete(req)
+	if err != nil {
+		log.Printf("Failed to dispatch note update: %v", err)
+		return err
+	}
+
+	// Delete the note from the cache
+	key := fmt.Sprintf("user:%s:note:%s", userId, req.NoteID)
+	err = s.Ch.Delete(ctx, key)
+	if err != nil {
+		log.Printf("Failed to delete note from cache: %v", err)
 	}
 
 	return nil
